@@ -867,10 +867,12 @@
                     // Reasons
                     updateReasons(d.reasons);
 
-                    // Track counts
-                    if (sig === 'BUY') buyCount++;
-                    else if (sig === 'SELL') sellCount++;
-                    else noTradeCount++;
+                    // Use database stats (not client-side counting)
+                    if (d.daily_stats) {
+                        buyCount = d.daily_stats.buy_count || 0;
+                        sellCount = d.daily_stats.sell_count || 0;
+                        noTradeCount = d.daily_stats.no_trade_count || 0;
+                    }
                     updateStats();
 
                     // History
