@@ -30,6 +30,7 @@ app.jinja_env.bytecode_cache = None
 
 signal_history = []
 history_lock = Lock()
+_last_saved_bar_time = None  # Track last M30 bar to avoid duplicate signals
 daily_stats = {
     "total_signals": 0,
     "buy_count": 0,
@@ -437,17 +438,23 @@ def get_signal():
                     "reasons": result.get("top_reasons", []),
                 }
 
-                # Save to database
-                try:
-                    db_insert_signal(signal_record)
-                except Exception as db_err:
-                    print(f"[WARN] DB insert failed: {db_err}")
+                # Only save once per M30 bar (avoid duplicates)
+                global _last_saved_bar_time
+                current_bar_time = str(df.index[-1])
+                if current_bar_time != _last_saved_bar_time:
+                    _last_saved_bar_time = current_bar_time
 
-                # Also keep in memory for fast access
-                with history_lock:
-                    signal_history.append(signal_record)
-                    if len(signal_history) > 500:
-                        signal_history.pop(0)
+                    # Save to database
+                    try:
+                        db_insert_signal(signal_record)
+                    except Exception as db_err:
+                        print(f"[WARN] DB insert failed: {db_err}")
+
+                    # Also keep in memory for fast access
+                    with history_lock:
+                        signal_history.append(signal_record)
+                        if len(signal_history) > 500:
+                            signal_history.pop(0)
 
             except Exception as e:
                 payload["error"] = f"Scoring error: {e}"
