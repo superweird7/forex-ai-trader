@@ -398,7 +398,21 @@
                     <span class="material-symbols-outlined text-gold text-lg">candlestick_chart</span>
                     <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">XAUUSD M30 Chart</h2>
                 </div>
-                <div id="tradingview_chart" style="height: 400px; border-radius: 8px; overflow: hidden;"></div>
+                <div style="position: relative;">
+                    <div id="tradingview_chart" style="height: 400px; border-radius: 8px; overflow: hidden;"></div>
+                    <!-- TP/SL/Entry overlay lines -->
+                    <div id="chart-overlay" style="display:none; position:absolute; top:0; right:60px; bottom:30px; width:2px; pointer-events:none;">
+                        <div id="overlay-tp" style="position:absolute; right:0; width:200px; border-top:2px dashed #00e479; display:flex; align-items:center; justify-content:flex-end;">
+                            <span style="background:#00e479; color:#000; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap;">TP <span id="overlay-tp-price"></span></span>
+                        </div>
+                        <div id="overlay-entry" style="position:absolute; right:0; width:200px; border-top:2px solid rgba(255,255,255,0.7); display:flex; align-items:center; justify-content:flex-end;">
+                            <span style="background:rgba(255,255,255,0.9); color:#000; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap;">ENTRY <span id="overlay-entry-price"></span></span>
+                        </div>
+                        <div id="overlay-sl" style="position:absolute; right:0; width:200px; border-top:2px dashed #bd0e2f; display:flex; align-items:center; justify-content:flex-end;">
+                            <span style="background:#bd0e2f; color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap;">SL <span id="overlay-sl-price"></span></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -907,8 +921,10 @@
             const panel = document.getElementById('trade-panel');
             if (!trade) {
                 panel.style.display = 'none';
+                updateChartOverlay(null);
                 return;
             }
+            updateChartOverlay(trade);
             panel.style.display = 'block';
             const isBuy = trade.direction === 'BUY';
             const dirEl = document.getElementById('trade-direction');
@@ -954,6 +970,37 @@
             }
         }
 
+        function updateChartOverlay(trade) {
+            const overlay = document.getElementById('chart-overlay');
+            if (!trade || !trade.tp_price || !trade.sl_price) {
+                overlay.style.display = 'none';
+                return;
+            }
+            overlay.style.display = 'block';
+            const chartEl = document.getElementById('tradingview_chart');
+            const chartHeight = chartEl.offsetHeight - 30; // exclude bottom axis
+
+            // Calculate price range visible on chart (estimate from TP/SL spread + padding)
+            const tp = trade.tp_price;
+            const sl = trade.sl_price;
+            const entry = trade.entry_price;
+            const padding = (tp - sl) * 0.5;
+            const highPrice = Math.max(tp, sl) + padding;
+            const lowPrice = Math.min(tp, sl) - padding;
+            const priceRange = highPrice - lowPrice;
+
+            function priceToY(price) {
+                return Math.max(0, Math.min(chartHeight, ((highPrice - price) / priceRange) * chartHeight));
+            }
+
+            document.getElementById('overlay-tp').style.top = priceToY(tp) + 'px';
+            document.getElementById('overlay-entry').style.top = priceToY(entry) + 'px';
+            document.getElementById('overlay-sl').style.top = priceToY(sl) + 'px';
+            document.getElementById('overlay-tp-price').textContent = tp.toFixed(2);
+            document.getElementById('overlay-entry-price').textContent = entry.toFixed(2);
+            document.getElementById('overlay-sl-price').textContent = sl.toFixed(2);
+        }
+
         async function closeTrade() {
             if (!confirm('Close this trade?')) return;
             try {
@@ -997,6 +1044,7 @@
         });
         socket.on('trade_closed', function(data) {
             document.getElementById('trade-panel').style.display = 'none';
+            updateChartOverlay(null);
             const isWin = (data.pnl_points || 0) > 0;
             const reason = {tp_hit:'TARGET HIT',sl_hit:'STOPPED OUT',expired:'EXPIRED',manual:'MANUAL CLOSE',new_signal:'NEW SIGNAL',reversed:'REVERSED'}[data.exit_reason] || data.exit_reason;
             sendNotification(
