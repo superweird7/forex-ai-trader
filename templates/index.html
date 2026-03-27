@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XAUUSD Signal Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#131313',
+                        panel: '#201f1f',
+                        border: 'rgba(77, 71, 50, 0.15)',
+                        gold: '#ffd700',
+                        'gold-dim': '#b8960f',
+                        'buy-green': '#00e479',
+                        'buy-bright': '#34ff8d',
+                        'sell-red': '#bd0e2f',
+                        'neutral-gray': '#6b7280',
+                    },
+                    fontFamily: {
+                        headline: ['Space Grotesk', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: #131313;
+            font-family: 'Inter', sans-serif;
+            color: #e5e5e5;
+        }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-body { font-family: 'Inter', sans-serif; }
+
+        /* Panel styling */
+        .panel {
+            background: #201f1f;
+            border: 1px solid rgba(77, 71, 50, 0.15);
+            border-radius: 12px;
+        }
+
+        /* Confidence gauge animation */
+        .gauge-ring {
+            transition: stroke-dashoffset 0.8s ease-in-out;
+        }
+
+        /* Probability bars */
+        .prob-bar {
+            transition: width 0.6s ease-in-out;
+            border-radius: 4px;
+            height: 8px;
+        }
+
+        /* Score dots */
+        .score-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #ffd700;
+            transition: background 0.3s;
+        }
+        .score-dot.filled {
+            background: #ffd700;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #131313; }
+        ::-webkit-scrollbar-thumb { background: #4d4732; border-radius: 3px; }
+
+        /* Status pulse */
+        .pulse-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Reason badge */
+        .reason-badge {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700;
+            background: rgba(255, 215, 0, 0.15);
+            color: #ffd700;
+            flex-shrink: 0;
+        }
+
+        /* History table */
+        .history-table tr { border-bottom: 1px solid rgba(77, 71, 50, 0.1); }
+        .history-table tr:hover { background: rgba(255, 215, 0, 0.03); }
+
+        /* Indicator card */
+        .indicator-card {
+            background: rgba(19, 19, 19, 0.6);
+            border: 1px solid rgba(77, 71, 50, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        /* TradingView container */
+        #tradingview_chart { border-radius: 8px; overflow: hidden; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- ===== HEADER ===== -->
+    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-3 flex items-center justify-between" style="background: rgba(19,19,19,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(77,71,50,0.15);">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-gold text-3xl">monitoring</span>
+            <h1 class="font-headline text-xl font-bold text-gold tracking-wide">XAUUSD SIGNAL DASHBOARD</h1>
+        </div>
+        <div class="flex items-center gap-6">
+            <!-- MT5 Status -->
+            <div class="flex items-center gap-2">
+                <div id="mt5-dot" class="pulse-dot bg-buy-green"></div>
+                <span id="mt5-status" class="text-xs font-body text-gray-400">MT5 Connected</span>
+            </div>
+            <!-- Model Status -->
+            <div class="flex items-center gap-2">
+                <div class="pulse-dot bg-gold"></div>
+                <span class="text-xs font-body text-gray-400">Model Active</span>
+            </div>
+            <!-- Clock -->
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-gray-500 text-lg">schedule</span>
+                <span id="clock" class="font-headline text-sm text-gray-300 tabular-nums">--:--:--</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== MAIN GRID ===== -->
+    <main class="pt-16 px-4 pb-6" style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; max-width: 1600px; margin: 0 auto;">
+
+        <!-- ========== LEFT COLUMN ========== -->
+        <div class="flex flex-col gap-4">
+
+            <!-- SIGNAL PANEL -->
+            <div class="panel p-6">
+                <div class="flex items-start gap-8">
+
+                    <!-- Confidence Gauge -->
+                    <div class="flex flex-col items-center" style="min-width: 180px;">
+                        <svg width="180" height="180" viewBox="0 0 180 180">
+                            <!-- Background ring -->
+                            <circle cx="90" cy="90" r="78" fill="none" stroke="#2a2a2a" stroke-width="10"
+                                    stroke-dasharray="490" stroke-dashoffset="0"
+                                    transform="rotate(-90 90 90)" stroke-linecap="round"/>
+                            <!-- Confidence ring -->
+                            <circle id="gauge-ring" class="gauge-ring" cx="90" cy="90" r="78" fill="none"
+                                    stroke="#ffd700" stroke-width="10"
+                                    stroke-dasharray="490" stroke-dashoffset="490"
+                                    transform="rotate(-90 90 90)" stroke-linecap="round"/>
+                            <!-- Center text -->
+                            <text x="90" y="80" text-anchor="middle" fill="#ffd700" font-family="Space Grotesk" font-size="36" font-weight="700">
+                                <tspan id="gauge-value">--</tspan>
+                            </text>
+                            <text x="90" y="100" text-anchor="middle" fill="#888" font-family="Inter" font-size="12">
+                                CONFIDENCE
+                            </text>
+                        </svg>
+                    </div>
+
+                    <!-- Signal + Probabilities -->
+                    <div class="flex-1">
+                        <!-- Signal -->
+                        <div class="mb-4">
+                            <div class="text-xs text-gray-500 uppercase tracking-widest mb-1">Current Signal</div>
+                            <div id="signal-text" class="font-headline text-5xl font-bold text-neutral-gray">---</div>
+                        </div>
+
+                        <!-- Probability Bars -->
+                        <div class="space-y-2 mb-4">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-gray-400">BUY</span>
+                                    <span id="buy-prob-text" class="text-buy-green">0%</span>
+                                </div>
+                                <div class="w-full bg-gray-800 rounded" style="height:8px">
+                                    <div id="buy-prob-bar" class="prob-bar bg-buy-green" style="width:0%;height:8px"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-gray-400">SELL</span>
+                                    <span id="sell-prob-text" class="text-sell-red">0%</span>
+                                </div>
+                                <div class="w-full bg-gray-800 rounded" style="height:8px">
+                                    <div id="sell-prob-bar" class="prob-bar bg-sell-red" style="width:0%;height:8px"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-gray-400">NO TRADE</span>
+                                    <span id="notrade-prob-text" class="text-gray-500">0%</span>
+                                </div>
+                                <div class="w-full bg-gray-800 rounded" style="height:8px">
+                                    <div id="notrade-prob-bar" class="prob-bar bg-gray-600" style="width:0%;height:8px"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Score Dots -->
+                        <div class="mb-4">
+                            <div class="text-xs text-gray-500 uppercase tracking-widest mb-2">Score</div>
+                            <div id="score-dots" class="flex gap-2">
+                                <!-- 10 dots rendered by JS -->
+                            </div>
+                            <div id="score-label" class="text-xs text-gray-500 mt-1">-- / 10</div>
+                        </div>
+                    </div>
+
+                    <!-- Price / Account -->
+                    <div class="flex flex-col gap-3" style="min-width: 160px;">
+                        <div class="indicator-card text-center">
+                            <div class="text-xs text-gray-500 mb-1">PRICE</div>
+                            <div id="price" class="font-headline text-2xl font-bold text-white">----</div>
+                            <div class="flex items-center justify-center gap-2 mt-1">
+                                <span id="bid" class="text-xs text-gray-500">Bid: --</span>
+                                <span id="spread" class="text-xs text-gray-500">Spd: --</span>
+                            </div>
+                        </div>
+                        <div class="indicator-card text-center">
+                            <div class="text-xs text-gray-500 mb-1">CHANGE</div>
+                            <div id="change" class="font-headline text-lg font-bold text-gray-400">0.00%</div>
+                        </div>
+                        <div class="indicator-card text-center">
+                            <div class="text-xs text-gray-500 mb-1">BALANCE</div>
+                            <div id="balance" class="font-headline text-lg font-bold text-gold">$--</div>
+                        </div>
+                        <div class="indicator-card text-center">
+                            <div class="text-xs text-gray-500 mb-1">EQUITY</div>
+                            <div id="equity" class="font-headline text-lg font-bold text-gray-300">$--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TECHNICAL INDICATORS GRID -->
+            <div class="panel p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-symbols-outlined text-gold text-lg">analytics</span>
+                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Technical Indicators</h2>
+                </div>
+                <div class="grid grid-cols-4 gap-3" id="indicators-grid">
+                    <!-- RSI -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">speed</span>
+                            <span class="text-xs text-gray-500">RSI (14)</span>
+                        </div>
+                        <div id="ind-rsi" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-rsi-label" class="text-[10px] text-gray-600">--</div>
+                    </div>
+                    <!-- Stochastic -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">waves</span>
+                            <span class="text-xs text-gray-500">Stoch %K</span>
+                        </div>
+                        <div id="ind-stoch" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-stoch-label" class="text-[10px] text-gray-600">--</div>
+                    </div>
+                    <!-- ATR -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">expand</span>
+                            <span class="text-xs text-gray-500">ATR</span>
+                        </div>
+                        <div id="ind-atr" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-atr-label" class="text-[10px] text-gray-600">vs avg: --</div>
+                    </div>
+                    <!-- ADX -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">trending_up</span>
+                            <span class="text-xs text-gray-500">ADX</span>
+                        </div>
+                        <div id="ind-adx" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-adx-label" class="text-[10px] text-gray-600">--</div>
+                    </div>
+                    <!-- BB Position -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">align_vertical_center</span>
+                            <span class="text-xs text-gray-500">BB Position</span>
+                        </div>
+                        <div id="ind-bb" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-bb-label" class="text-[10px] text-gray-600">--</div>
+                    </div>
+                    <!-- EMA Trend -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">show_chart</span>
+                            <span class="text-xs text-gray-500">EMA Trend</span>
+                        </div>
+                        <div id="ind-ema" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-ema-label" class="text-[10px] text-gray-600">--</div>
+                    </div>
+                    <!-- MACD -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">stacked_line_chart</span>
+                            <span class="text-xs text-gray-500">MACD</span>
+                        </div>
+                        <div id="ind-macd" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-macd-label" class="text-[10px] text-gray-600">--</div>
+                    </div>
+                    <!-- Candle -->
+                    <div class="indicator-card">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">candlestick_chart</span>
+                            <span class="text-xs text-gray-500">Candle</span>
+                        </div>
+                        <div id="ind-candle" class="font-headline text-xl font-bold text-gray-400">--</div>
+                        <div id="ind-candle-label" class="text-[10px] text-gray-600">Body: --%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRADINGVIEW CHART -->
+            <div class="panel p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-symbols-outlined text-gold text-lg">candlestick_chart</span>
+                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">XAUUSD M30 Chart</h2>
+                </div>
+                <div id="tradingview_chart" style="height: 400px; border-radius: 8px; overflow: hidden;"></div>
+            </div>
+        </div>
+
+        <!-- ========== RIGHT COLUMN ========== -->
+        <div class="flex flex-col gap-4">
+
+            <!-- TOP REASONS -->
+            <div class="panel p-5">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-gold text-lg">lightbulb</span>
+                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Signal Reasons</h2>
+                </div>
+                <div id="reasons-list" class="space-y-3">
+                    <div class="text-sm text-gray-600 italic">Waiting for signal...</div>
+                </div>
+            </div>
+
+            <!-- PERFORMANCE STATS -->
+            <div class="panel p-5">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-gold text-lg">bar_chart</span>
+                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Session Stats</h2>
+                </div>
+                <div class="space-y-4">
+                    <!-- Total Signals -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-400">Total Signals</span>
+                        <span id="stat-total" class="font-headline text-lg font-bold text-white">0</span>
+                    </div>
+                    <!-- BUY count -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-buy-green flex items-center gap-1">
+                                <span class="material-symbols-outlined" style="font-size:14px">arrow_upward</span>BUY
+                            </span>
+                            <span id="stat-buy" class="text-buy-green font-semibold">0</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded" style="height:6px">
+                            <div id="stat-buy-bar" class="prob-bar bg-buy-green" style="width:0%;height:6px"></div>
+                        </div>
+                    </div>
+                    <!-- SELL count -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-sell-red flex items-center gap-1">
+                                <span class="material-symbols-outlined" style="font-size:14px">arrow_downward</span>SELL
+                            </span>
+                            <span id="stat-sell" class="text-sell-red font-semibold">0</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded" style="height:6px">
+                            <div id="stat-sell-bar" class="prob-bar bg-sell-red" style="width:0%;height:6px"></div>
+                        </div>
+                    </div>
+                    <!-- NO TRADE count -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-500 flex items-center gap-1">
+                                <span class="material-symbols-outlined" style="font-size:14px">block</span>NO TRADE
+                            </span>
+                            <span id="stat-notrade" class="text-gray-500 font-semibold">0</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded" style="height:6px">
+                            <div id="stat-notrade-bar" class="prob-bar bg-gray-600" style="width:0%;height:6px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIGNAL HISTORY -->
+            <div class="panel p-5" style="max-height: 500px; overflow-y: auto;">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-gold text-lg">history</span>
+                        <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Signal History</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportCSV()" class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors rounded cursor-pointer">Export CSV</button>
+                        <button onclick="exportJSON()" class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors rounded cursor-pointer">Export JSON</button>
+                    </div>
+                </div>
+                <table class="w-full history-table">
+                    <thead>
+                        <tr class="text-xs text-gray-500 uppercase">
+                            <th class="text-left py-2 font-medium">Time</th>
+                            <th class="text-left py-2 font-medium">Price</th>
+                            <th class="text-left py-2 font-medium">Signal</th>
+                            <th class="text-right py-2 font-medium">Conf</th>
+                            <th class="text-right py-2 font-medium">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <tr><td colspan="5" class="text-center text-sm text-gray-600 py-8 italic">No signals yet</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- TradingView Widget -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        new TradingView.widget({
+            width: "100%",
+            height: 400,
+            symbol: "OANDA:XAUUSD",
+            interval: "30",
+            timezone: "Etc/UTC",
+            theme: "dark",
+            style: "1",
+            locale: "en",
+            toolbar_bg: "#1a1a2e",
+            enable_publishing: false,
+            allow_symbol_change: false,
+            hide_side_toolbar: false,
+            container_id: "tradingview_chart",
+            backgroundColor: "#201f1f",
+            gridColor: "rgba(77, 71, 50, 0.1)",
+        });
+    </script>
+
+    <!-- ===== DASHBOARD JAVASCRIPT ===== -->
+    <script>
+        // ---- State ----
+        let buyCount = 0;
+        let sellCount = 0;
+        let noTradeCount = 0;
+
+        // ---- Reason emoji map ----
+        const reasonEmojis = {
+            'oversold':   '📉', 'overbought':  '📈',
+            'rsi':        '📊', 'ema':         '📐',
+            'pullback':   '🔄', 'support':     '🛡',
+            'resistance': '🧱', 'engulfing':   '🕯',
+            'macd':       '📶', 'bb':          '🎯',
+            'bollinger':  '🎯', 'breakout':    '🚀',
+            'momentum':   '⚡', 'divergence':  '🔀',
+            'trend':      '📈', 'squeeze':     '🔥',
+            'volume':     '📊', 'stoch':       '🌀',
+            'adx':        '💪', 'atr':         '📏',
+            'candle':     '🕯', 'reversal':    '↩️',
+            'cross':      '✂️', 'ichimoku':    '☁️',
+            'default':    '💡',
+        };
+
+        function getReasonEmoji(reason) {
+            const lower = reason.toLowerCase();
+            for (const [key, emoji] of Object.entries(reasonEmojis)) {
+                if (key !== 'default' && lower.includes(key)) return emoji;
+            }
+            return reasonEmojis['default'];
+        }
+
+        // ---- Clock ----
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ---- Color helpers ----
+        function signalColor(signal) {
+            if (!signal) return '#6b7280';
+            const s = signal.toUpperCase();
+            if (s === 'BUY')  return '#00e479';
+            if (s === 'SELL') return '#bd0e2f';
+            return '#6b7280';
+        }
+
+        function rsiColor(val) {
+            if (val <= 30) return '#00e479';
+            if (val >= 70) return '#bd0e2f';
+            return '#ffd700';
+        }
+
+        function stochColor(val) {
+            if (val <= 20) return '#00e479';
+            if (val >= 80) return '#bd0e2f';
+            return '#ffd700';
+        }
+
+        function adxColor(val) {
+            if (val >= 25) return '#00e479';
+            return '#6b7280';
+        }
+
+        function bbColor(val) {
+            if (val <= 0.2) return '#00e479';
+            if (val >= 0.8) return '#bd0e2f';
+            return '#ffd700';
+        }
+
+        function rsiLabel(val) {
+            if (val <= 30) return 'OVERSOLD';
+            if (val >= 70) return 'OVERBOUGHT';
+            return 'NEUTRAL';
+        }
+
+        function stochLabel(val) {
+            if (val <= 20) return 'OVERSOLD';
+            if (val >= 80) return 'OVERBOUGHT';
+            return 'NEUTRAL';
+        }
+
+        function adxLabel(val) {
+            if (val >= 50) return 'VERY STRONG';
+            if (val >= 25) return 'STRONG TREND';
+            return 'WEAK TREND';
+        }
+
+        function bbLabel(val) {
+            if (val <= 0.2) return 'NEAR LOWER';
+            if (val >= 0.8) return 'NEAR UPPER';
+            return 'MIDDLE';
+        }
+
+        // ---- Update gauge SVG ----
+        function updateGauge(confidence) {
+            const ring = document.getElementById('gauge-ring');
+            const label = document.getElementById('gauge-value');
+            const circumference = 490; // 2 * PI * 78
+            const pct = Math.max(0, Math.min(100, confidence || 0));
+            const offset = circumference - (circumference * pct / 100);
+            ring.style.strokeDashoffset = offset;
+            label.textContent = Math.round(pct);
+
+            // Color based on confidence
+            if (pct >= 70) ring.style.stroke = '#00e479';
+            else if (pct >= 40) ring.style.stroke = '#ffd700';
+            else ring.style.stroke = '#bd0e2f';
+        }
+
+        // ---- Update score dots ----
+        function updateScoreDots(score) {
+            const container = document.getElementById('score-dots');
+            container.innerHTML = '';
+            const s = Math.max(0, Math.min(10, score || 0));
+            for (let i = 0; i < 10; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'score-dot' + (i < s ? ' filled' : '');
+                container.appendChild(dot);
+            }
+            document.getElementById('score-label').textContent = `${s} / 10`;
+        }
+
+        // ---- Update reasons ----
+        function updateReasons(reasons) {
+            const container = document.getElementById('reasons-list');
+            if (!reasons || reasons.length === 0) {
+                container.innerHTML = '<div class="text-sm text-gray-600 italic">No reasons available</div>';
+                return;
+            }
+            container.innerHTML = reasons.map((r, i) => `
+                <div class="flex items-center gap-3">
+                    <div class="reason-badge">${i + 1}</div>
+                    <span class="text-lg">${getReasonEmoji(r)}</span>
+                    <span class="text-sm text-gray-300">${r}</span>
+                </div>
+            `).join('');
+        }
+
+        // ---- Update history table ----
+        function updateHistory(history) {
+            const tbody = document.getElementById('history-body');
+            if (!history || history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-sm text-gray-600 py-8 italic">No signals yet</td></tr>';
+                return;
+            }
+            // Show most recent first, limit to 30
+            const rows = history.slice(-30).reverse();
+            tbody.innerHTML = rows.map(h => {
+                const color = signalColor(h.signal);
+                return `
+                    <tr>
+                        <td class="py-2 text-xs text-gray-400 font-mono">${h.time || '--'}</td>
+                        <td class="py-2 text-xs text-white font-headline font-semibold">${h.price ? h.price.toFixed(2) : '--'}</td>
+                        <td class="py-2 text-xs font-bold" style="color:${color}">${h.signal || '--'}</td>
+                        <td class="py-2 text-xs text-right text-gray-400">${h.confidence != null ? h.confidence + '%' : '--'}</td>
+                        <td class="py-2 text-xs text-right text-gold">${h.score != null ? h.score : '--'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ---- Update stats bars ----
+        function updateStats() {
+            const total = buyCount + sellCount + noTradeCount;
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-buy').textContent = buyCount;
+            document.getElementById('stat-sell').textContent = sellCount;
+            document.getElementById('stat-notrade').textContent = noTradeCount;
+
+            const pct = (count) => total > 0 ? (count / total * 100) : 0;
+            document.getElementById('stat-buy-bar').style.width = pct(buyCount) + '%';
+            document.getElementById('stat-sell-bar').style.width = pct(sellCount) + '%';
+            document.getElementById('stat-notrade-bar').style.width = pct(noTradeCount) + '%';
+        }
+
+        // ---- Main fetch ----
+        function updateSignal() {
+            fetch('/api/signal')
+                .then(res => {
+                    if (!res.ok) throw new Error('API error ' + res.status);
+                    return res.json();
+                })
+                .then(d => {
+                    // MT5 status
+                    const mt5Dot = document.getElementById('mt5-dot');
+                    const mt5Status = document.getElementById('mt5-status');
+                    if (d.mt5_connected) {
+                        mt5Dot.className = 'pulse-dot bg-buy-green';
+                        mt5Status.textContent = 'MT5 Connected';
+                    } else {
+                        mt5Dot.className = 'pulse-dot bg-sell-red';
+                        mt5Status.textContent = 'MT5 Offline';
+                    }
+
+                    // Signal text
+                    const sigEl = document.getElementById('signal-text');
+                    const sig = (d.signal || 'NO_TRADE').toUpperCase();
+                    sigEl.textContent = sig;
+                    sigEl.style.color = signalColor(sig);
+
+                    // Confidence gauge
+                    updateGauge(d.confidence);
+
+                    // Probability bars
+                    document.getElementById('buy-prob-bar').style.width = (d.buy_prob || 0) + '%';
+                    document.getElementById('buy-prob-text').textContent = (d.buy_prob || 0).toFixed(1) + '%';
+                    document.getElementById('sell-prob-bar').style.width = (d.sell_prob || 0) + '%';
+                    document.getElementById('sell-prob-text').textContent = (d.sell_prob || 0).toFixed(1) + '%';
+                    document.getElementById('notrade-prob-bar').style.width = (d.no_trade_prob || 0) + '%';
+                    document.getElementById('notrade-prob-text').textContent = (d.no_trade_prob || 0).toFixed(1) + '%';
+
+                    // Score
+                    updateScoreDots(d.score);
+
+                    // Price / Account
+                    document.getElementById('price').textContent = d.price ? d.price.toFixed(2) : '----';
+                    document.getElementById('bid').textContent = 'Bid: ' + (d.bid ? d.bid.toFixed(2) : '--');
+                    document.getElementById('spread').textContent = 'Spd: ' + (d.spread != null ? d.spread.toFixed(0) : '--');
+
+                    const changeEl = document.getElementById('change');
+                    const chg = d.change || 0;
+                    changeEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(3) + '%';
+                    changeEl.style.color = chg >= 0 ? '#00e479' : '#bd0e2f';
+
+                    document.getElementById('balance').textContent = '$' + (d.balance ? d.balance.toFixed(2) : '--');
+                    document.getElementById('equity').textContent = '$' + (d.equity ? d.equity.toFixed(2) : '--');
+
+                    // Technical Indicators
+                    if (d.rsi != null) {
+                        const rsiEl = document.getElementById('ind-rsi');
+                        rsiEl.textContent = d.rsi.toFixed(1);
+                        rsiEl.style.color = rsiColor(d.rsi);
+                        document.getElementById('ind-rsi-label').textContent = rsiLabel(d.rsi);
+                    }
+
+                    if (d.stoch_k != null) {
+                        const stEl = document.getElementById('ind-stoch');
+                        stEl.textContent = d.stoch_k.toFixed(1);
+                        stEl.style.color = stochColor(d.stoch_k);
+                        document.getElementById('ind-stoch-label').textContent = stochLabel(d.stoch_k);
+                    }
+
+                    if (d.atr != null) {
+                        document.getElementById('ind-atr').textContent = d.atr.toFixed(1);
+                        document.getElementById('ind-atr').style.color = '#ffd700';
+                        document.getElementById('ind-atr-label').textContent = 'vs avg: ' + (d.atr_vs_avg ? d.atr_vs_avg.toFixed(2) + 'x' : '--');
+                    }
+
+                    if (d.adx != null) {
+                        const adxEl = document.getElementById('ind-adx');
+                        adxEl.textContent = d.adx.toFixed(1);
+                        adxEl.style.color = adxColor(d.adx);
+                        document.getElementById('ind-adx-label').textContent = adxLabel(d.adx);
+                    }
+
+                    if (d.bb_position != null) {
+                        const bbEl = document.getElementById('ind-bb');
+                        bbEl.textContent = d.bb_position.toFixed(2);
+                        bbEl.style.color = bbColor(d.bb_position);
+                        document.getElementById('ind-bb-label').textContent = bbLabel(d.bb_position);
+                    }
+
+                    if (d.ema_trend != null) {
+                        const emaEl = document.getElementById('ind-ema');
+                        emaEl.textContent = d.ema_trend;
+                        emaEl.style.color = d.ema_trend === 'BULLISH' ? '#00e479' : d.ema_trend === 'BEARISH' ? '#bd0e2f' : '#6b7280';
+                        document.getElementById('ind-ema-label').textContent = d.ema_trend === 'BULLISH' ? 'EMA 21 > 50' : d.ema_trend === 'BEARISH' ? 'EMA 21 < 50' : '--';
+                    }
+
+                    if (d.macd != null) {
+                        const macdEl = document.getElementById('ind-macd');
+                        macdEl.textContent = d.macd.toFixed(1);
+                        macdEl.style.color = d.macd >= 0 ? '#00e479' : '#bd0e2f';
+                        document.getElementById('ind-macd-label').textContent = d.macd >= 0 ? 'BULLISH' : 'BEARISH';
+                    }
+
+                    // Candle
+                    if (d.is_bullish != null) {
+                        const candleEl = document.getElementById('ind-candle');
+                        candleEl.textContent = d.is_bullish ? 'BULL' : 'BEAR';
+                        candleEl.style.color = d.is_bullish ? '#00e479' : '#bd0e2f';
+                        document.getElementById('ind-candle-label').textContent = 'Body: ' + (d.body_ratio != null ? (d.body_ratio * 100).toFixed(0) + '%' : '--%');
+                    }
+
+                    // Reasons
+                    updateReasons(d.reasons);
+
+                    // Track counts
+                    if (sig === 'BUY') buyCount++;
+                    else if (sig === 'SELL') sellCount++;
+                    else noTradeCount++;
+                    updateStats();
+
+                    // History
+                    updateHistory(d.history);
+                })
+                .catch(err => {
+                    console.error('Signal fetch error:', err);
+                    // Mark MT5 as offline on error
+                    document.getElementById('mt5-dot').className = 'pulse-dot bg-sell-red';
+                    document.getElementById('mt5-status').textContent = 'API Error';
+                });
+        }
+
+        // ---- Export Functions ----
+        let allSignals = [];
+
+        function exportCSV() {
+            if (allSignals.length === 0) { alert('No signals to export yet. Wait for a few refresh cycles.'); return; }
+            const headers = ['time','price','signal','confidence','score'];
+            let csv = headers.join(',') + '\n';
+            allSignals.forEach(s => {
+                csv += [s.time, s.price, s.signal, s.confidence, s.score].join(',') + '\n';
+            });
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gold_signals_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportJSON() {
+            if (allSignals.length === 0) { alert('No signals to export yet. Wait for a few refresh cycles.'); return; }
+            const blob = new Blob([JSON.stringify(allSignals, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gold_signals_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Store signals from each update
+        const origUpdate = updateSignal;
+        updateSignal = async function() {
+            await origUpdate();
+            try {
+                const resp = await fetch('/api/history');
+                const hist = await resp.json();
+                if (Array.isArray(hist)) {
+                    hist.forEach(s => {
+                        if (!allSignals.find(x => x.time === s.time && x.price === s.price)) {
+                            allSignals.push(s);
+                        }
+                    });
+                }
+            } catch(e) {}
+        };
+
+        // ---- Init ----
+        updateScoreDots(0);
+        updateSignal();
+        setInterval(updateSignal, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,889 @@
+/* ============================================================
+   Gold AI Signal Scorer — Dark Trading Terminal Theme
+   ============================================================ */
+
+/* --- Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* --- Variables --- */
+:root {
+    --bg-primary: #0a0a1a;
+    --bg-secondary: #111128;
+    --bg-panel: #16213e;
+    --bg-panel-hover: #1a2744;
+    --border-color: #0f3460;
+    --border-glow: #1a4a7a;
+    --text-primary: #e8e8f0;
+    --text-secondary: #8890a8;
+    --text-dim: #555a70;
+    --gold: #ffd700;
+    --gold-dim: #b8960f;
+    --green: #00ff88;
+    --green-dim: #00cc6a;
+    --green-bg: rgba(0, 255, 136, 0.08);
+    --red: #ff4444;
+    --red-dim: #cc3333;
+    --red-bg: rgba(255, 68, 68, 0.08);
+    --blue: #4488ff;
+    --blue-dim: #3366cc;
+    --gray: #888899;
+    --gray-bg: rgba(136, 136, 153, 0.08);
+    --panel-radius: 12px;
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    --transition: all 0.3s ease;
+}
+
+/* --- Reset --- */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.5;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
+
+/* ============================================================
+   Header
+   ============================================================ */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.header-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+    transition: var(--transition);
+}
+
+.status-dot.connected {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 8px var(--green); }
+    50% { box-shadow: 0 0 16px var(--green); }
+}
+
+/* ============================================================
+   Main Layout
+   ============================================================ */
+.dashboard {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto auto auto;
+    gap: 16px;
+    padding: 16px 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* --- Panel base --- */
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: var(--panel-radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+}
+
+.panel:hover {
+    border-color: var(--border-glow);
+}
+
+.panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+/* ============================================================
+   Signal Panel (main — top left)
+   ============================================================ */
+.signal-panel {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    display: flex;
+    gap: 32px;
+    align-items: center;
+    padding: 28px 32px;
+}
+
+.signal-main {
+    flex: 1;
+    text-align: center;
+}
+
+.signal-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 72px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    line-height: 1;
+    margin-bottom: 12px;
+    transition: all 0.5s ease;
+}
+
+.signal-text.buy {
+    color: var(--green);
+    text-shadow: 0 0 40px rgba(0, 255, 136, 0.4), 0 0 80px rgba(0, 255, 136, 0.15);
+}
+
+.signal-text.sell {
+    color: var(--red);
+    text-shadow: 0 0 40px rgba(255, 68, 68, 0.4), 0 0 80px rgba(255, 68, 68, 0.15);
+}
+
+.signal-text.no_trade {
+    color: var(--gray);
+    text-shadow: 0 0 20px rgba(136, 136, 153, 0.3);
+}
+
+@keyframes signal-flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.signal-text.animate {
+    animation: signal-flash 0.5s ease;
+}
+
+.signal-score-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 8px;
+}
+
+.score-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.score-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.score-bar {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.score-bar-segment {
+    width: 14px;
+    height: 20px;
+    border-radius: 3px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.score-bar-segment.filled {
+    border-color: transparent;
+}
+
+.score-bar-segment.filled.low { background: var(--red); box-shadow: 0 0 4px var(--red); }
+.score-bar-segment.filled.mid { background: var(--gold); box-shadow: 0 0 4px var(--gold); }
+.score-bar-segment.filled.high { background: var(--green); box-shadow: 0 0 4px var(--green); }
+
+/* --- Confidence Gauge --- */
+.gauge-container {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.gauge {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.gauge-bg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--gray) 0deg,
+        var(--gray) 360deg
+    );
+    mask: radial-gradient(transparent 58%, black 59%);
+    -webkit-mask: radial-gradient(transparent 58%, black 59%);
+}
+
+.gauge-fill {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--green) 0deg,
+        var(--green) 0deg,
+        transparent 0deg,
+        transparent 360deg
+    );
+    mask: radial-gradient(transparent 58%, black 59%);
+    -webkit-mask: radial-gradient(transparent 58%, black 59%);
+    transition: background 0.8s ease;
+}
+
+.gauge-inner {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+}
+
+.gauge-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.gauge-unit {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.gauge-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+/* --- Price Display --- */
+.price-section {
+    flex-shrink: 0;
+    text-align: center;
+    min-width: 180px;
+}
+
+.price-current {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.price-change {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.price-change.positive { color: var(--green); }
+.price-change.negative { color: var(--red); }
+.price-change.flat { color: var(--gray); }
+
+.price-spread {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+}
+
+.price-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+/* Probability bars */
+.prob-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 14px;
+    width: 100%;
+}
+
+.prob-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.prob-label {
+    width: 60px;
+    text-align: right;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.prob-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.prob-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.prob-bar-fill.buy { background: var(--green); }
+.prob-bar-fill.sell { background: var(--red); }
+.prob-bar-fill.no-trade { background: var(--gray); }
+
+.prob-value {
+    width: 42px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ============================================================
+   Reasons Panel (top right)
+   ============================================================ */
+.reasons-panel {
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+}
+
+.reason-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: var(--transition);
+}
+
+.reason-item:last-child { border-bottom: none; }
+
+.reason-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--gold);
+}
+
+.reason-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    font-weight: 400;
+}
+
+.reason-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+/* ============================================================
+   Market Data Grid (mid left)
+   ============================================================ */
+.market-grid {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+}
+
+.indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.indicator-card {
+    background: var(--bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: var(--transition);
+}
+
+.indicator-card:hover {
+    border-color: var(--border-color);
+    background: var(--bg-panel-hover);
+}
+
+.indicator-name {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.indicator-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.indicator-value.green { color: var(--green); }
+.indicator-value.red { color: var(--red); }
+.indicator-value.gold { color: var(--gold); }
+
+.indicator-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* BB Position visual */
+.bb-visual {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.bb-track {
+    flex: 1;
+    height: 6px;
+    background: linear-gradient(90deg, var(--red), var(--gray), var(--green));
+    border-radius: 3px;
+    position: relative;
+}
+
+.bb-marker {
+    position: absolute;
+    top: -4px;
+    width: 14px;
+    height: 14px;
+    background: var(--text-primary);
+    border: 2px solid var(--bg-panel);
+    border-radius: 50%;
+    transform: translateX(-50%);
+    transition: left 0.6s ease;
+}
+
+/* ============================================================
+   TradingView Chart
+   ============================================================ */
+.chart-panel {
+    grid-column: 1 / 2;
+    grid-row: 3 / 4;
+    padding: 12px;
+    overflow: hidden;
+}
+
+.chart-panel .tradingview-widget-container {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* ============================================================
+   Signal History Table (bottom left)
+   ============================================================ */
+.history-panel {
+    grid-column: 1 / 2;
+    grid-row: 4 / 5;
+}
+
+.history-table-wrap {
+    max-height: 380px;
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.history-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    z-index: 2;
+}
+
+.history-table tbody tr {
+    transition: background 0.2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.history-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.history-table td {
+    padding: 9px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.history-table .signal-cell {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.history-table .signal-cell.buy { color: var(--green); }
+.history-table .signal-cell.sell { color: var(--red); }
+.history-table .signal-cell.no_trade { color: var(--gray); }
+
+.history-table tr.row-buy { background: var(--green-bg); }
+.history-table tr.row-sell { background: var(--red-bg); }
+.history-table tr.row-no_trade { background: var(--gray-bg); }
+
+/* ============================================================
+   Stats Sidebar (right side, below reasons)
+   ============================================================ */
+.stats-panel {
+    grid-column: 2 / 3;
+    grid-row: 3 / 5;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.stat-row:last-child { border-bottom: none; }
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-value.green { color: var(--green); }
+.stat-value.red { color: var(--red); }
+.stat-value.gold { color: var(--gold); }
+
+/* Feature importance mini bars */
+.importance-list {
+    margin-top: 8px;
+}
+
+.importance-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.importance-name {
+    width: 110px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.importance-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.importance-bar-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+
+.importance-pct {
+    width: 36px;
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ============================================================
+   Confidence distribution mini chart
+   ============================================================ */
+.conf-dist {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 60px;
+    margin-top: 12px;
+    padding-top: 4px;
+}
+
+.conf-bar {
+    flex: 1;
+    background: var(--border-color);
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    transition: height 0.4s ease, background 0.3s ease;
+}
+
+/* ============================================================
+   Account Info Bar
+   ============================================================ */
+.account-bar {
+    display: flex;
+    gap: 24px;
+    padding: 8px 0;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.account-item {
+    font-size: 12px;
+}
+
+.account-item-label {
+    color: var(--text-dim);
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.account-item-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ============================================================
+   Loading / Error states
+   ============================================================ */
+.loading-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.error-text {
+    color: var(--red);
+    font-size: 12px;
+    padding: 8px 12px;
+    background: var(--red-bg);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 68, 68, 0.2);
+}
+
+/* ============================================================
+   Refresh indicator
+   ============================================================ */
+.refresh-bar {
+    height: 2px;
+    background: var(--bg-secondary);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+}
+
+.refresh-bar-fill {
+    height: 100%;
+    background: var(--gold);
+    width: 0%;
+    transition: width 30s linear;
+}
+
+.refresh-bar-fill.active {
+    width: 100%;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1200px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
+
+    .reasons-panel {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .stats-panel {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .signal-panel {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .signal-text {
+        font-size: 48px;
+    }
+
+    .header {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+}
+
+@media (max-width: 700px) {
+    .indicator-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .signal-text {
+        font-size: 36px;
+    }
+
+    .price-current {
+        font-size: 24px;
+    }
+
+    .gauge {
+        width: 120px;
+        height: 120px;
+    }
+
+    .gauge-value {
+        font-size: 26px;
+    }
+}
