@@ -25,7 +25,7 @@
                         'buy-green': '#00ff41',
                         'buy-bright': '#00ff41',
                         'sell-red': '#ff0040',
-                        'neutral-gray': '#444',
+                        'neutral-gray': '#666',
                     },
                     fontFamily: {
                         headline: ['JetBrains Mono', 'monospace'],
@@ -40,7 +40,14 @@
         body {
             background: #000;
             font-family: 'JetBrains Mono', monospace;
-            color: #888;
+            color: #ccc;
+        }
+        #particles-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
         }
         .font-headline { font-family: 'JetBrains Mono', monospace; }
         .font-body { font-family: 'JetBrains Mono', monospace; }
@@ -101,7 +108,7 @@
             display: flex; align-items: center; justify-content: center;
             font-size: 10px; font-weight: 600;
             background: transparent;
-            color: #444;
+            color: #666;
             border: 1px solid #333;
             flex-shrink: 0;
             font-family: 'JetBrains Mono', monospace;
@@ -143,7 +150,7 @@
         .section-label {
             font-size: 10px;
             letter-spacing: 3px;
-            color: #444;
+            color: #666;
             text-transform: uppercase;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
@@ -153,7 +160,7 @@
         .nav-link {
             font-size: 10px;
             letter-spacing: 2px;
-            color: #444;
+            color: #666;
             text-transform: uppercase;
             font-family: 'JetBrains Mono', monospace;
             text-decoration: none;
@@ -184,6 +191,7 @@
     </style>
 </head>
 <body class="min-h-screen">
+    <canvas id="particles-canvas"></canvas>
 
     <!-- ===== HEADER ===== -->
     <header class="fixed top-0 left-0 right-0 z-50 px-6 py-2 flex items-center justify-between" style="background: #000; border-bottom: 1px solid #1a1a1a;">
@@ -221,7 +229,7 @@
     </div>
 
     <!-- ===== MAIN GRID ===== -->
-    <main class="px-4 pb-6" style="padding-top: 68px; display: grid; grid-template-columns: 2fr 1fr; gap: 12px; max-width: 1600px; margin: 0 auto;">
+    <main class="px-4 pb-6" style="padding-top: 68px; display: grid; grid-template-columns: 2fr 1fr; gap: 12px; max-width: 1600px; margin: 0 auto; position: relative; z-index: 1;">
 
         <!-- ========== LEFT COLUMN ========== -->
         <div class="flex flex-col gap-3">
@@ -257,14 +265,14 @@
                         <!-- Signal -->
                         <div class="mb-4">
                             <div class="section-label mb-1">CURRENT SIGNAL</div>
-                            <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #444;">---</div>
+                            <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #666;">---</div>
                         </div>
 
                         <!-- Probability Bars -->
                         <div class="space-y-3 mb-4">
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span style="color: #444; font-size: 10px; letter-spacing: 2px;">BUY</span>
+                                    <span style="color: #666; font-size: 10px; letter-spacing: 2px;">BUY</span>
                                     <span id="buy-prob-text" class="text-buy-green" style="font-size: 10px;">0%</span>
                                 </div>
                                 <div class="w-full" style="background: #111; height: 2px;">
@@ -273,7 +281,7 @@
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span style="color: #444; font-size: 10px; letter-spacing: 2px;">SELL</span>
+                                    <span style="color: #666; font-size: 10px; letter-spacing: 2px;">SELL</span>
                                     <span id="sell-prob-text" class="text-sell-red" style="font-size: 10px;">0%</span>
                                 </div>
                                 <div class="w-full" style="background: #111; height: 2px;">
@@ -282,7 +290,7 @@
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span style="color: #444; font-size: 10px; letter-spacing: 2px;">NO TRADE</span>
+                                    <span style="color: #666; font-size: 10px; letter-spacing: 2px;">NO TRADE</span>
                                     <span id="notrade-prob-text" style="color: #333; font-size: 10px;">0%</span>
                                 </div>
                                 <div class="w-full" style="background: #111; height: 2px;">
@@ -313,7 +321,7 @@
                         </div>
                         <div class="indicator-card text-center">
                             <div class="section-label mb-1">CHANGE</div>
-                            <div id="change" class="font-headline text-lg font-bold" style="color: #444;">0.00%</div>
+                            <div id="change" class="font-headline text-lg font-bold" style="color: #666;">0.00%</div>
                         </div>
                         <div class="indicator-card text-center">
                             <div class="section-label mb-1">BALANCE</div>
@@ -382,49 +390,49 @@
                     <!-- RSI -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">RSI (14)</div>
-                        <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-rsi-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- Stochastic -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">STOCH %K</div>
-                        <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-stoch-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- ATR -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ATR</div>
-                        <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-atr-label" style="font-size: 9px; color: #333;">vs avg: --</div>
                     </div>
                     <!-- ADX -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ADX</div>
-                        <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-adx-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- BB Position -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">BB POSITION</div>
-                        <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-bb-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- EMA Trend -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">EMA TREND</div>
-                        <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-ema-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- MACD -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">MACD</div>
-                        <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-macd-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- Candle -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">CANDLE</div>
-                        <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #666;">--</div>
                         <div id="ind-candle-label" style="font-size: 9px; color: #333;">Body: --%</div>
                     </div>
                 </div>
@@ -474,7 +482,7 @@
                 <div class="space-y-4">
                     <!-- Total Signals -->
                     <div class="flex justify-between items-center">
-                        <span style="font-size: 10px; color: #444; letter-spacing: 2px; text-transform: uppercase;">TOTAL SIGNALS</span>
+                        <span style="font-size: 10px; color: #666; letter-spacing: 2px; text-transform: uppercase;">TOTAL SIGNALS</span>
                         <span id="stat-total" class="font-headline text-lg font-bold" style="color: #ccc;">0</span>
                     </div>
                     <!-- BUY count -->
@@ -1117,6 +1125,68 @@
         fetchActiveTrade();
         setInterval(updateSignal, 30000);
         setInterval(fetchActiveTrade, 10000);
+    </script>
+    <script>
+    // ---- Particles Background ----
+    (function() {
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const COUNT = 60;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        for (let i = 0; i < COUNT; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: (Math.random() - 0.5) * 0.3,
+                r: Math.random() * 1.5 + 0.5,
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 255, 65, 0.15)';
+                ctx.fill();
+
+                // Connect nearby particles
+                for (let j = i + 1; j < particles.length; j++) {
+                    const q = particles[j];
+                    const dx = p.x - q.x;
+                    const dy = p.y - q.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(q.x, q.y);
+                        ctx.strokeStyle = `rgba(0, 255, 65, ${0.04 * (1 - dist / 150)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+    })();
     </script>
 </body>
 </html>
