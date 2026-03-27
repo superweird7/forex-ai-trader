@@ -401,8 +401,134 @@ def calculate_trade_levels(direction, entry_price, atr_value, atr_vs_avg):
     return tp_price, sl_price, sl_distance, tp_distance, max_duration
 
 
+def calculate_hold_score(direction, entry_price, current_bid, current_ask, features, elapsed_sec):
+    """Calculate hold score (0-100) based on real-time market conditions."""
+    score = 50  # Start neutral
+    atr = features.get("atr14", 20) or 20
+
+    # Current P&L
+    if direction == "BUY":
+        pnl = current_bid - entry_price
+    else:
+        pnl = entry_price - current_ask
+    pnl_ratio = pnl / atr if atr > 0 else 0
+
+    # 1. P&L factor (-20 to +20)
+    if pnl_ratio >= 1.5:
+        score += 20  # big profit, hold or take
+    elif pnl_ratio >= 0.5:
+        score += 15
+    elif pnl_ratio >= 0:
+        score += 5
+    elif pnl_ratio >= -0.5:
+        score -= 10
+    elif pnl_ratio >= -1.0:
+        score -= 20
+    else:
+        score -= 30  # heavy loss
+
+    # 2. Momentum factor (-15 to +15)
+    momentum = features.get("momentum_6", 0) or 0
+    if direction == "BUY":
+        if momentum > 10:
+            score += 15
+        elif momentum > 0:
+            score += 5
+        elif momentum > -10:
+            score -= 5
+        else:
+            score -= 15
+    else:  # SELL
+        if momentum < -10:
+            score += 15
+        elif momentum < 0:
+            score += 5
+        elif momentum < 10:
+            score -= 5
+        else:
+            score -= 15
+
+    # 3. RSI factor (-10 to +10)
+    rsi = features.get("rsi14", 50) or 50
+    if direction == "BUY":
+        if rsi > 75:
+            score -= 10  # overbought, likely to reverse
+        elif rsi > 60:
+            score += 5
+        elif rsi < 40:
+            score -= 5
+    else:
+        if rsi < 25:
+            score -= 10  # oversold, likely to reverse
+        elif rsi < 40:
+            score += 5
+        elif rsi > 60:
+            score -= 5
+
+    # 4. EMA trend alignment (-10 to +10)
+    ema_trend = features.get("ema_trend", 0)
+    if direction == "BUY" and ema_trend == 1:
+        score += 10
+    elif direction == "SELL" and ema_trend == 0:
+        score += 10
+    elif direction == "BUY" and ema_trend == 0:
+        score -= 10
+    elif direction == "SELL" and ema_trend == 1:
+        score -= 10
+
+    # 5. MACD alignment (-10 to +10)
+    macd = features.get("macd", 0) or 0
+    if direction == "BUY" and macd > 0:
+        score += 10
+    elif direction == "SELL" and macd < 0:
+        score += 10
+    elif direction == "BUY" and macd < -5:
+        score -= 10
+    elif direction == "SELL" and macd > 5:
+        score -= 10
+
+    # 6. Volatility spike penalty (-10 to 0)
+    atr_vs_avg = features.get("atr_vs_avg", 1.0) or 1.0
+    if atr_vs_avg > 1.5:
+        score -= 10  # volatile = unpredictable
+
+    # 7. Time decay (-5 to 0) — longer trades get slight penalty
+    if elapsed_sec > 3600:
+        score -= 5
+    elif elapsed_sec > 1800:
+        score -= 2
+
+    # Clamp to 0-100
+    score = max(0, min(100, score))
+
+    # Generate reason
+    if score >= 70:
+        reason = "Momentum and trend in your favor. Hold."
+    elif score >= 50:
+        reason = "Mixed signals. Watch closely."
+    elif score >= 30:
+        if pnl_ratio < -0.5:
+            reason = f"Down {pnl:.0f} pts and conditions weakening."
+        else:
+            reason = "Momentum fading. Consider closing."
+    else:
+        if pnl_ratio < -0.5:
+            reason = f"Down {pnl:.0f} pts. Trend against you. Exit now."
+        elif pnl_ratio > 0.5:
+            reason = f"Up {pnl:+.0f} pts but momentum reversing. Take profit."
+        else:
+            reason = "Multiple factors say exit. Close now."
+
+    return {
+        "hold_score": score,
+        "hold_reason": reason,
+        "pnl": round(pnl, 2),
+        "pnl_ratio": round(pnl_ratio, 2),
+    }
+
+
 def open_trade(signal_record):
-    """Open a new active trade from a signal."""
+    """Open a new active trade from a signal. Only close existing if direction reverses."""
     direction = signal_record["signal"]
     if direction not in ("BUY", "SELL"):
         return None
@@ -411,11 +537,37 @@ def open_trade(signal_record):
     if signal_record.get("confidence", 0) < conf_threshold:
         return None
 
-    # Close any existing active trades first
+    # Check existing active trade
     conn = get_db()
-    conn.execute("UPDATE active_trades SET status='closed', exit_reason='new_signal', closed_at=? WHERE status='active'",
-                 (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
-    conn.commit()
+    existing = conn.execute("SELECT * FROM active_trades WHERE status='active' ORDER BY id DESC LIMIT 1").fetchone()
+
+    if existing:
+        existing_dict = dict(existing)
+        if existing_dict["direction"] == direction:
+            # Same direction — keep existing trade, don't open new one
+            conn.close()
+            return None
+        else:
+            # Direction reversed — close old trade with P&L
+            try:
+                import MetaTrader5 as mt5
+                if mt5.initialize():
+                    tick = mt5.symbol_info_tick(existing_dict.get("symbol", "XAUUSD.m"))
+                    if tick:
+                        if existing_dict["direction"] == "BUY":
+                            exit_price = tick.bid
+                            pnl = round(tick.bid - existing_dict["entry_price"], 2)
+                        else:
+                            exit_price = tick.ask
+                            pnl = round(existing_dict["entry_price"] - tick.ask, 2)
+                        conn.execute("""UPDATE active_trades SET status='closed', exit_reason='reversed',
+                            exit_price=?, pnl_points=?, closed_at=? WHERE id=?""",
+                            (exit_price, pnl, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), existing_dict["id"]))
+                        conn.commit()
+            except Exception:
+                conn.execute("UPDATE active_trades SET status='closed', exit_reason='reversed', closed_at=? WHERE status='active'",
+                    (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
+                conn.commit()
 
     entry_price = signal_record.get("price", 0) if direction == "BUY" else signal_record.get("bid", 0)
     atr_value = signal_record.get("atr", 20)
@@ -1683,64 +1835,42 @@ def background_signal_checker():
                         socketio.emit("trade_closed", ct)
                         send_trade_telegram(ct, "closed")
 
-                    # Send live trade update with recommendation
+                    # Send live trade update with HOLD SCORE
                     active = get_active_trade()
                     if active:
                         active["current_ask"] = tick_info["ask"]
                         active["current_bid"] = tick_info["bid"]
-                        entry = active["entry_price"]
-                        atr = active.get("atr_value", 20) or 20
-                        elapsed = active.get("elapsed_sec", 0)
-                        max_dur = active.get("max_duration_sec", 1800) or 1800
-                        remaining = active.get("remaining_sec", 0)
 
-                        if active["direction"] == "BUY":
-                            pnl = round(tick_info["bid"] - entry, 2)
+                        # Calculate hold score using live features
+                        hold = calculate_hold_score(
+                            active["direction"], active["entry_price"],
+                            tick_info["bid"], tick_info["ask"],
+                            features, active.get("elapsed_sec", 0)
+                        )
+                        active["current_pnl"] = hold["pnl"]
+                        active["hold_score"] = hold["hold_score"]
+                        active["hold_reason"] = hold["hold_reason"]
+
+                        # Map hold score to recommendation
+                        hs = hold["hold_score"]
+                        if hs >= 70:
+                            active["recommendation"] = "HOLD"
+                            active["rec_detail"] = hold["hold_reason"]
+                            active["rec_level"] = "good"
+                        elif hs >= 50:
+                            active["recommendation"] = "WATCH"
+                            active["rec_detail"] = hold["hold_reason"]
+                            active["rec_level"] = "neutral"
+                        elif hs >= 30:
+                            active["recommendation"] = "CLOSE SOON"
+                            active["rec_detail"] = hold["hold_reason"]
+                            active["rec_level"] = "caution"
                         else:
-                            pnl = round(entry - tick_info["ask"], 2)
-                        active["current_pnl"] = pnl
-
-                        # Calculate recommendation
-                        pnl_ratio = pnl / atr if atr > 0 else 0  # how many ATRs of profit/loss
-
-                        if pnl_ratio >= 1.5:
-                            rec = "TAKE PROFIT"
-                            rec_detail = f"You're up {pnl:+.0f} pts (1.5x ATR). Lock in gains."
-                            rec_level = "profit"
-                        elif pnl_ratio >= 0.5:
-                            rec = "HOLD"
-                            rec_detail = f"Up {pnl:+.0f} pts and moving in your favor."
-                            rec_level = "good"
-                        elif pnl_ratio >= 0:
-                            rec = "HOLD"
-                            rec_detail = f"Around breakeven ({pnl:+.0f} pts). Wait for move."
-                            rec_level = "neutral"
-                        elif pnl_ratio >= -0.5:
-                            rec = "CAUTION"
-                            rec_detail = f"Down {pnl:.0f} pts. Still within normal range."
-                            rec_level = "caution"
-                        elif pnl_ratio >= -1.0:
-                            rec = "CLOSE NOW"
-                            rec_detail = f"Down {pnl:.0f} pts (1x ATR). Cut your loss."
-                            rec_level = "danger"
-                        else:
-                            rec = "CLOSE NOW"
-                            rec_detail = f"Down {pnl:.0f} pts. Heavy loss — exit immediately."
-                            rec_level = "danger"
-
-                        # Override with timer
-                        if remaining <= 0:
-                            rec = "EXPIRED"
-                            rec_detail = f"Time limit reached. Close at market ({pnl:+.0f} pts)."
-                            rec_level = "expired"
-                        elif remaining < 120 and pnl <= 0:
-                            rec = "CLOSE SOON"
-                            rec_detail = f"Under 2 min left and losing {pnl:.0f} pts. Close soon."
-                            rec_level = "caution"
-
-                        active["recommendation"] = rec
-                        active["rec_detail"] = rec_detail
-                        active["rec_level"] = rec_level
+                            active["recommendation"] = "CLOSE NOW"
+                            active["rec_detail"] = hold["hold_reason"]
+                            active["rec_level"] = "danger"
+                            # Play alert sound via emit
+                            active["alert_sound"] = True
 
                         socketio.emit("trade_update", active)
         except Exception as e:

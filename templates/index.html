@@ -286,14 +286,25 @@
                 </div>
             </div>
 
-            <!-- Trade alert banner -->
-            <!-- Live Recommendation -->
-            <div id="trade-rec" style="border:1px solid #1a1a1a; padding:10px 16px; margin-bottom:8px; display:none;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div id="trade-rec-icon" style="width:12px; height:12px; background:#00ff41;"></div>
-                    <div id="trade-rec-text" style="font-size:16px; font-weight:700; letter-spacing:2px; color:#00ff41;">HOLD</div>
+            <!-- HOLD SCORE -->
+            <div id="trade-rec" style="border:1px solid #1a1a1a; padding:12px 16px; display:none;">
+                <div style="display:flex; align-items:center; gap:20px;">
+                    <!-- Hold Score Bar -->
+                    <div style="flex:1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:11px; color:#999; letter-spacing:2px;">HOLD SCORE</span>
+                            <span id="trade-hold-value" style="font-size:24px; font-weight:700; color:#00ff41;">--</span>
+                        </div>
+                        <div style="background:#111; height:8px; width:100%;">
+                            <div id="trade-hold-bar" style="height:8px; width:50%; background:#00ff41; transition:width 0.3s, background 0.3s;"></div>
+                        </div>
+                    </div>
+                    <!-- Recommendation -->
+                    <div style="text-align:right; min-width:150px;">
+                        <div id="trade-rec-text" style="font-size:18px; font-weight:700; letter-spacing:2px; color:#00ff41;">HOLD</div>
+                        <div id="trade-rec-detail" style="font-size:11px; color:#999; margin-top:2px;">Waiting for data...</div>
+                    </div>
                 </div>
-                <div id="trade-rec-detail" style="font-size:12px; color:#999; margin-top:4px;">Waiting for data...</div>
             </div>
             <div id="trade-alert" class="hidden px-4 py-2 text-sm font-bold text-center" style="border: 1px solid #1a1a1a;"></div>
         </div>
@@ -1154,28 +1165,38 @@
 
             // Timer is handled by startTradeTimer() interval (1s updates)
 
-            // Recommendation
+            // Hold Score + Recommendation
             const recEl = document.getElementById('trade-rec');
             const recText = document.getElementById('trade-rec-text');
             const recDetail = document.getElementById('trade-rec-detail');
-            const recIcon = document.getElementById('trade-rec-icon');
-            if (trade.recommendation) {
+            const holdValue = document.getElementById('trade-hold-value');
+            const holdBar = document.getElementById('trade-hold-bar');
+            if (trade.hold_score != null || trade.recommendation) {
                 recEl.style.display = 'block';
-                recText.textContent = trade.recommendation;
-                recDetail.textContent = trade.rec_detail || '';
-                const colors = {
-                    profit: '#00ff41',
-                    good: '#00ff41',
-                    neutral: '#888',
-                    caution: '#ffaa00',
-                    danger: '#ff0040',
-                    expired: '#666',
-                };
-                const c = colors[trade.rec_level] || '#888';
+                const hs = trade.hold_score || 50;
+                _activeTrade._holdScore = hs; // store for 1s interpolation
+
+                holdValue.textContent = hs;
+                holdBar.style.width = hs + '%';
+
+                // Color based on score
+                let c;
+                if (hs >= 70) c = '#00ff41';
+                else if (hs >= 50) c = '#888';
+                else if (hs >= 30) c = '#ffaa00';
+                else c = '#ff0040';
+
+                holdValue.style.color = c;
+                holdBar.style.background = c;
+                recText.textContent = trade.recommendation || 'HOLD';
                 recText.style.color = c;
-                recIcon.style.background = c;
-                // Pulse the border on danger
-                recEl.style.borderColor = trade.rec_level === 'danger' ? '#ff0040' : trade.rec_level === 'profit' ? '#00ff41' : '#1a1a1a';
+                recDetail.textContent = trade.hold_reason || trade.rec_detail || '';
+                recEl.style.borderColor = hs < 30 ? '#ff0040' : hs >= 70 ? '#00ff41' : '#1a1a1a';
+
+                // Sound alert on CLOSE NOW
+                if (trade.alert_sound) {
+                    playSound('trade-close');
+                }
             }
 
             // Progress bar (position between SL and TP)
