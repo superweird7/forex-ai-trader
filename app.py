@@ -115,6 +115,20 @@ def init_db():
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_signals_signal ON signals(signal)
     """)
+    # Migration: add symbol column if missing
+    try:
+        conn.execute("SELECT symbol FROM signals LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE signals ADD COLUMN symbol TEXT DEFAULT 'XAUUSD.m'")
+        print("[OK] Added symbol column to signals table")
+
+    # Migration: add model_version column if missing
+    try:
+        conn.execute("SELECT model_version FROM signals LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE signals ADD COLUMN model_version TEXT DEFAULT 'v1'")
+        print("[OK] Added model_version column to signals table")
+
     conn.commit()
     conn.close()
     print(f"[OK] Database ready: {DB_PATH}")
@@ -129,8 +143,9 @@ def db_insert_signal(signal_data):
     conn.execute("""
         INSERT INTO signals (time, price, bid, signal, confidence, score,
             buy_prob, sell_prob, no_trade_prob, rsi, stoch_k, atr, atr_vs_avg,
-            adx, bb_position, ema_trend, macd, body_ratio, is_bullish, reasons)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            adx, bb_position, ema_trend, macd, body_ratio, is_bullish, reasons,
+            symbol)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         signal_data.get("time"),
         signal_data.get("price"),
@@ -152,16 +167,20 @@ def db_insert_signal(signal_data):
         signal_data.get("body_ratio"),
         1 if signal_data.get("is_bullish") else 0,
         reasons,
+        signal_data.get("symbol", "XAUUSD.m"),
     ))
     conn.commit()
     conn.close()
 
 
-def db_get_signals(limit=20, offset=0, signal_filter=None, date_from=None, date_to=None):
+def db_get_signals(limit=20, offset=0, signal_filter=None, date_from=None, date_to=None, symbol_filter=None):
     """Query signals from the database with optional filters."""
     conn = get_db()
     query = "SELECT * FROM signals WHERE 1=1"
     params = []
+    if symbol_filter:
+        query += " AND symbol = ?"
+        params.append(symbol_filter)
     if signal_filter:
         query += " AND signal = ?"
         params.append(signal_filter)
@@ -204,6 +223,42 @@ def db_get_stats():
         "no_trade_count": today_notrade,
         "date": today,
     }
+
+
+# ---------------------------------------------------------------------------
+# Telegram Alerts
+# ---------------------------------------------------------------------------
+def send_telegram_alert(signal_data):
+    """Send Telegram message for high-confidence signals."""
+    if not CONFIG.get("alerts", {}).get("enabled", False):
+        return
+    min_conf = CONFIG.get("alerts", {}).get("min_confidence", 90)
+    if signal_data.get("confidence", 0) < min_conf:
+        return
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return
+
+    sig = signal_data["signal"]
+    icon = "\U0001f7e2" if sig == "BUY" else "\U0001f534" if sig == "SELL" else "\u26aa"
+    symbol = signal_data.get("symbol", CONFIG["scoring"]["default_symbol"])
+    msg = (
+        f"{icon} {sig} Signal \u2014 {symbol}\n"
+        f"\U0001f4b0 Price: {signal_data.get('price', 0)}\n"
+        f"\U0001f4ca Confidence: {signal_data.get('confidence', 0)}% ({signal_data.get('score', 0)}/10)\n"
+        f"\U0001f4c8 RSI: {signal_data.get('rsi', 0)} | ATR: {signal_data.get('atr', 0)}\n"
+        f"\u23f0 {signal_data.get('time', '')}"
+    )
+    try:
+        import requests as req
+        req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": msg},
+            timeout=5,
+        )
+    except Exception as e:
+        print(f"[WARN] Telegram alert failed: {e}")
 
 
 # Initialize database on import
@@ -253,12 +308,14 @@ def init_mt5():
         return False
 
 
-def get_mt5_data():
+def get_mt5_data(symbol=None):
     """
     Fetch live M30 bars and tick from MT5.
     Returns (df, tick_info, account_info) or raises.
     """
     import MetaTrader5 as mt5
+
+    symbol = symbol or CONFIG["scoring"]["default_symbol"]
 
     if not mt5.initialize():
         mt5.initialize(CONFIG["paths"]["mt5_terminal"])
@@ -267,7 +324,6 @@ def get_mt5_data():
     if info is None:
         raise ConnectionError("MT5 terminal not responding")
 
-    symbol = CONFIG["scoring"]["default_symbol"]
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 200)
     if rates is None or len(rates) == 0:
         raise ValueError(f"No {symbol} M30 data from MT5")
@@ -344,6 +400,8 @@ def get_signal():
     """Main endpoint: fetch live data, score, return everything."""
     reset_daily_stats_if_needed()
 
+    symbol = request.args.get("symbol", CONFIG["scoring"]["default_symbol"])
+
     scorer = get_scorer()
     mt5_connected = False
     error_msg = None
@@ -407,7 +465,7 @@ def get_signal():
 
     # Try to get MT5 data
     try:
-        df, tick_info, account_info = get_mt5_data()
+        df, tick_info, account_info = get_mt5_data(symbol)
         mt5_connected = True
 
         if tick_info:
@@ -486,6 +544,7 @@ def get_signal():
                     "is_bullish": payload.get("is_bullish", False),
                     "reasons": result.get("top_reasons", []),
                 }
+                signal_record["symbol"] = symbol
 
                 # Only save once per M30 bar (avoid duplicates)
                 global _last_saved_bar_time
@@ -498,6 +557,8 @@ def get_signal():
                         db_insert_signal(signal_record)
                     except Exception as db_err:
                         print(f"[WARN] DB insert failed: {db_err}")
+
+                    send_telegram_alert(signal_record)
 
                     # Also keep in memory for fast access
                     with history_lock:
@@ -525,6 +586,7 @@ def get_signal():
         payload["history"] = list(signal_history[-20:])
 
     payload["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    payload["model_warning"] = symbol != "XAUUSD.m"
 
     return jsonify(payload)
 
@@ -615,11 +677,13 @@ def api_signals():
     limit = request.args.get("limit", 50, type=int)
     offset = request.args.get("offset", 0, type=int)
     signal_filter = request.args.get("signal", None)
+    symbol_filter = request.args.get("symbol", None)
     date_from = request.args.get("from", None)
     date_to = request.args.get("to", None)
     signals = db_get_signals(limit=limit, offset=offset,
                              signal_filter=signal_filter,
-                             date_from=date_from, date_to=date_to)
+                             date_from=date_from, date_to=date_to,
+                             symbol_filter=symbol_filter)
     stats = db_get_stats()
     return jsonify({"signals": signals, "stats": stats})
 
@@ -629,6 +693,12 @@ def api_signals():
 def api_signals_count():
     """Get total signal counts from the database."""
     return jsonify(db_get_stats())
+
+
+@app.route("/api/symbols")
+@login_required
+def get_symbols():
+    return jsonify(CONFIG.get("symbols", ["XAUUSD.m"]))
 
 
 @app.route("/api/status")
