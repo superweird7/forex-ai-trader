@@ -3,3 +3,8 @@ pandas
 numpy
 xgboost
 MetaTrader5
+python-dotenv
+pyyaml
+flask-socketio
+pytest
+requests
