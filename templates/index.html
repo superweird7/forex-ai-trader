@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XAUUSD Signal Dashboard</title>
+    <title>Q::XAUUSD // SIGNAL TERMINAL</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Material Symbols -->
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,19 +17,19 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: '#131313',
-                        panel: '#201f1f',
-                        border: 'rgba(77, 71, 50, 0.15)',
-                        gold: '#ffd700',
-                        'gold-dim': '#b8960f',
-                        'buy-green': '#00e479',
-                        'buy-bright': '#34ff8d',
-                        'sell-red': '#bd0e2f',
-                        'neutral-gray': '#6b7280',
+                        bg: '#000000',
+                        panel: '#000000',
+                        border: '#1a1a1a',
+                        gold: '#00ff41',
+                        'gold-dim': '#00aa2a',
+                        'buy-green': '#00ff41',
+                        'buy-bright': '#00ff41',
+                        'sell-red': '#ff0040',
+                        'neutral-gray': '#444',
                     },
                     fontFamily: {
-                        headline: ['Space Grotesk', 'sans-serif'],
-                        body: ['Inter', 'sans-serif'],
+                        headline: ['JetBrains Mono', 'monospace'],
+                        body: ['JetBrains Mono', 'monospace'],
                     },
                 }
             }
@@ -41,18 +38,21 @@
 
     <style>
         body {
-            background: #131313;
-            font-family: 'Inter', sans-serif;
-            color: #e5e5e5;
+            background: #000;
+            font-family: 'JetBrains Mono', monospace;
+            color: #888;
         }
-        .font-headline { font-family: 'Space Grotesk', sans-serif; }
-        .font-body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'JetBrains Mono', monospace; }
+        .font-body { font-family: 'JetBrains Mono', monospace; }
 
         /* Panel styling */
         .panel {
-            background: #201f1f;
-            border: 1px solid rgba(77, 71, 50, 0.15);
-            border-radius: 12px;
+            background: #000;
+            border: 1px solid #1a1a1a;
+            border-radius: 0;
+        }
+        .panel:hover {
+            border-color: #333;
         }
 
         /* Confidence gauge animation */
@@ -63,104 +63,168 @@
         /* Probability bars */
         .prob-bar {
             transition: width 0.6s ease-in-out;
-            border-radius: 4px;
-            height: 8px;
+            border-radius: 0;
+            height: 2px;
         }
 
-        /* Score dots */
+        /* Score dots — now squares */
         .score-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid #ffd700;
+            width: 6px;
+            height: 6px;
+            border-radius: 0;
+            border: 1px solid #333;
             transition: background 0.3s;
         }
         .score-dot.filled {
-            background: #ffd700;
+            background: #00ff41;
+            border-color: #00ff41;
         }
 
         /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #131313; }
-        ::-webkit-scrollbar-thumb { background: #4d4732; border-radius: 3px; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 0; }
 
         /* Status pulse */
         .pulse-dot {
-            width: 8px; height: 8px; border-radius: 50%;
+            width: 6px; height: 6px; border-radius: 0;
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50% { opacity: 0.3; }
         }
 
-        /* Reason badge */
+        /* Reason badge — now square */
         .reason-badge {
-            width: 24px; height: 24px; border-radius: 50%;
+            width: 20px; height: 20px; border-radius: 0;
             display: flex; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: 700;
-            background: rgba(255, 215, 0, 0.15);
-            color: #ffd700;
+            font-size: 10px; font-weight: 600;
+            background: transparent;
+            color: #444;
+            border: 1px solid #333;
             flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         /* History table */
-        .history-table tr { border-bottom: 1px solid rgba(77, 71, 50, 0.1); }
-        .history-table tr:hover { background: rgba(255, 215, 0, 0.03); }
+        .history-table tr { border-bottom: none; }
+        .history-table tr:nth-child(even) { background: rgba(255,255,255,0.01); }
+        .history-table tr:hover { background: rgba(0,255,65,0.03); }
 
         /* Indicator card */
         .indicator-card {
-            background: rgba(19, 19, 19, 0.6);
-            border: 1px solid rgba(77, 71, 50, 0.1);
-            border-radius: 8px;
+            background: #000;
+            border: 1px solid #1a1a1a;
+            border-radius: 0;
             padding: 12px;
+        }
+        .indicator-card:hover {
+            border-color: #333;
         }
 
         /* TradingView container */
-        #tradingview_chart { border-radius: 8px; overflow: hidden; }
+        #tradingview_chart { border-radius: 0; overflow: hidden; }
+
+        /* Ticker animation */
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Blink for timer */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+        .blink { animation: blink 1s step-end infinite; }
+
+        /* Section headers */
+        .section-label {
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: #444;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        /* Terminal nav links */
+        .nav-link {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #444;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            text-decoration: none;
+            padding: 2px 0;
+            transition: color 0.2s;
+        }
+        .nav-link:hover { color: #00ff41; }
+        .nav-link.active { color: #00ff41; }
+
+        /* Terminal buttons */
+        .term-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 1px solid #333;
+            background: transparent;
+            color: #666;
+            padding: 3px 10px;
+            border-radius: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .term-btn:hover {
+            border-color: #00ff41;
+            color: #00ff41;
+        }
     </style>
 </head>
 <body class="min-h-screen">
 
     <!-- ===== HEADER ===== -->
-    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-3 flex items-center justify-between" style="background: rgba(19,19,19,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(77,71,50,0.15);">
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-gold text-3xl">monitoring</span>
-                <h1 class="font-headline text-xl font-bold text-gold tracking-wide">XAUUSD SIGNAL DASHBOARD</h1>
-            </div>
-            <nav class="flex items-center gap-4 ml-4">
-                <a href="/" class="text-gold text-sm font-semibold border-b border-gold pb-0.5">Dashboard</a>
-                <a href="/history" class="text-gray-400 hover:text-gold text-sm font-medium transition">History</a>
-                <a href="/simulate" class="text-gray-400 hover:text-gold text-sm font-medium transition">Simulator</a>
-                <a href="/admin/models" class="text-gray-400 hover:text-gold text-sm font-medium transition">Admin</a>
-                <a href="/settings" class="text-gray-400 hover:text-gold text-sm font-medium transition">Settings</a>
+    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-2 flex items-center justify-between" style="background: #000; border-bottom: 1px solid #1a1a1a;">
+        <div class="flex items-center gap-8">
+            <h1 class="font-headline text-xs font-medium tracking-widest" style="color: #00ff41; letter-spacing: 4px;">Q::XAUUSD // SIGNAL TERMINAL</h1>
+            <nav class="flex items-center gap-1 ml-2">
+                <a href="/" class="nav-link active">[DASHBOARD]</a>
+                <a href="/history" class="nav-link">[HISTORY]</a>
+                <a href="/simulate" class="nav-link">[SIMULATE]</a>
+                <a href="/admin/models" class="nav-link">[ADMIN]</a>
+                <a href="/settings" class="nav-link">[SETTINGS]</a>
             </nav>
         </div>
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-6" style="font-size: 10px; letter-spacing: 2px; font-family: 'JetBrains Mono', monospace;">
             <!-- MT5 Status -->
             <div class="flex items-center gap-2">
                 <div id="mt5-dot" class="pulse-dot bg-buy-green"></div>
-                <span id="mt5-status" class="text-xs font-body text-gray-400">MT5 Connected</span>
+                <span id="mt5-status" class="text-gray-500 uppercase">MT5:ONLINE</span>
             </div>
             <!-- Model Status -->
             <div class="flex items-center gap-2">
-                <div class="pulse-dot bg-gold"></div>
-                <span class="text-xs font-body text-gray-400">Model Active</span>
+                <div class="pulse-dot" style="background: #00ff41;"></div>
+                <span class="text-gray-500 uppercase">MDL:ACTIVE</span>
             </div>
             <!-- Clock -->
-            <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-gray-500 text-lg">schedule</span>
-                <span id="clock" class="font-headline text-sm text-gray-300 tabular-nums">--:--:--</span>
-            </div>
+            <span id="clock" class="font-headline tabular-nums" style="color: #666;">--:--:--</span>
         </div>
     </header>
 
+    <!-- ===== TICKER BAR ===== -->
+    <div class="fixed left-0 right-0 z-40" style="top: 36px; background: #000; border-bottom: 1px solid #1a1a1a; overflow: hidden; height: 20px; line-height: 20px;">
+        <div id="ticker-bar" style="white-space: nowrap; animation: ticker 30s linear infinite; font-size: 10px; color: #333; letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;">
+            XAUUSD SIGNAL TERMINAL // POWERED BY XGBOOST ML // M30 TIMEFRAME // REAL-TIME MT5 DATA // LONDON+NY SESSION FOCUS // RULE-BASED SMARTFILTER // ATR VOLATILITY REGIME // CONFIDENCE THRESHOLD 80% //
+        </div>
+    </div>
+
     <!-- ===== MAIN GRID ===== -->
-    <main class="pt-16 px-4 pb-6" style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; max-width: 1600px; margin: 0 auto;">
+    <main class="px-4 pb-6" style="padding-top: 68px; display: grid; grid-template-columns: 2fr 1fr; gap: 12px; max-width: 1600px; margin: 0 auto;">
 
         <!-- ========== LEFT COLUMN ========== -->
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-3">
 
             <!-- SIGNAL PANEL -->
             <div class="panel p-6">
@@ -170,19 +234,19 @@
                     <div class="flex flex-col items-center" style="min-width: 180px;">
                         <svg width="180" height="180" viewBox="0 0 180 180">
                             <!-- Background ring -->
-                            <circle cx="90" cy="90" r="78" fill="none" stroke="#2a2a2a" stroke-width="10"
+                            <circle cx="90" cy="90" r="78" fill="none" stroke="#111" stroke-width="6"
                                     stroke-dasharray="490" stroke-dashoffset="0"
-                                    transform="rotate(-90 90 90)" stroke-linecap="round"/>
+                                    transform="rotate(-90 90 90)" stroke-linecap="butt"/>
                             <!-- Confidence ring -->
                             <circle id="gauge-ring" class="gauge-ring" cx="90" cy="90" r="78" fill="none"
-                                    stroke="#ffd700" stroke-width="10"
+                                    stroke="#00ff41" stroke-width="6"
                                     stroke-dasharray="490" stroke-dashoffset="490"
-                                    transform="rotate(-90 90 90)" stroke-linecap="round"/>
+                                    transform="rotate(-90 90 90)" stroke-linecap="butt"/>
                             <!-- Center text -->
-                            <text x="90" y="80" text-anchor="middle" fill="#ffd700" font-family="Space Grotesk" font-size="36" font-weight="700">
+                            <text x="90" y="80" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="36" font-weight="700">
                                 <tspan id="gauge-value">--</tspan>
                             </text>
-                            <text x="90" y="100" text-anchor="middle" fill="#888" font-family="Inter" font-size="12">
+                            <text x="90" y="100" text-anchor="middle" fill="#444" font-family="JetBrains Mono" font-size="9" letter-spacing="3">
                                 CONFIDENCE
                             </text>
                         </svg>
@@ -192,202 +256,176 @@
                     <div class="flex-1">
                         <!-- Signal -->
                         <div class="mb-4">
-                            <div class="text-xs text-gray-500 uppercase tracking-widest mb-1">Current Signal</div>
-                            <div id="signal-text" class="font-headline text-5xl font-bold text-neutral-gray">---</div>
+                            <div class="section-label mb-1">CURRENT SIGNAL</div>
+                            <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #444;">---</div>
                         </div>
 
                         <!-- Probability Bars -->
-                        <div class="space-y-2 mb-4">
+                        <div class="space-y-3 mb-4">
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span class="text-gray-400">BUY</span>
-                                    <span id="buy-prob-text" class="text-buy-green">0%</span>
+                                    <span style="color: #444; font-size: 10px; letter-spacing: 2px;">BUY</span>
+                                    <span id="buy-prob-text" class="text-buy-green" style="font-size: 10px;">0%</span>
                                 </div>
-                                <div class="w-full bg-gray-800 rounded" style="height:8px">
-                                    <div id="buy-prob-bar" class="prob-bar bg-buy-green" style="width:0%;height:8px"></div>
+                                <div class="w-full" style="background: #111; height: 2px;">
+                                    <div id="buy-prob-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
                                 </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span class="text-gray-400">SELL</span>
-                                    <span id="sell-prob-text" class="text-sell-red">0%</span>
+                                    <span style="color: #444; font-size: 10px; letter-spacing: 2px;">SELL</span>
+                                    <span id="sell-prob-text" class="text-sell-red" style="font-size: 10px;">0%</span>
                                 </div>
-                                <div class="w-full bg-gray-800 rounded" style="height:8px">
-                                    <div id="sell-prob-bar" class="prob-bar bg-sell-red" style="width:0%;height:8px"></div>
+                                <div class="w-full" style="background: #111; height: 2px;">
+                                    <div id="sell-prob-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
                                 </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span class="text-gray-400">NO TRADE</span>
-                                    <span id="notrade-prob-text" class="text-gray-500">0%</span>
+                                    <span style="color: #444; font-size: 10px; letter-spacing: 2px;">NO TRADE</span>
+                                    <span id="notrade-prob-text" style="color: #333; font-size: 10px;">0%</span>
                                 </div>
-                                <div class="w-full bg-gray-800 rounded" style="height:8px">
-                                    <div id="notrade-prob-bar" class="prob-bar bg-gray-600" style="width:0%;height:8px"></div>
+                                <div class="w-full" style="background: #111; height: 2px;">
+                                    <div id="notrade-prob-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Score Dots -->
                         <div class="mb-4">
-                            <div class="text-xs text-gray-500 uppercase tracking-widest mb-2">Score</div>
-                            <div id="score-dots" class="flex gap-2">
+                            <div class="section-label mb-2">SCORE</div>
+                            <div id="score-dots" class="flex gap-1">
                                 <!-- 10 dots rendered by JS -->
                             </div>
-                            <div id="score-label" class="text-xs text-gray-500 mt-1">-- / 10</div>
+                            <div id="score-label" class="text-xs mt-1" style="color: #333; font-size: 10px;">-- / 10</div>
                         </div>
                     </div>
 
                     <!-- Price / Account -->
                     <div class="flex flex-col gap-3" style="min-width: 160px;">
                         <div class="indicator-card text-center">
-                            <div class="text-xs text-gray-500 mb-1">PRICE</div>
-                            <div id="price" class="font-headline text-2xl font-bold text-white">----</div>
+                            <div class="section-label mb-1">PRICE</div>
+                            <div id="price" class="font-headline text-2xl font-bold" style="color: #ccc;">----</div>
                             <div class="flex items-center justify-center gap-2 mt-1">
-                                <span id="bid" class="text-xs text-gray-500">Bid: --</span>
-                                <span id="spread" class="text-xs text-gray-500">Spd: --</span>
+                                <span id="bid" style="font-size: 10px; color: #333;">Bid: --</span>
+                                <span id="spread" style="font-size: 10px; color: #333;">Spd: --</span>
                             </div>
                         </div>
                         <div class="indicator-card text-center">
-                            <div class="text-xs text-gray-500 mb-1">CHANGE</div>
-                            <div id="change" class="font-headline text-lg font-bold text-gray-400">0.00%</div>
+                            <div class="section-label mb-1">CHANGE</div>
+                            <div id="change" class="font-headline text-lg font-bold" style="color: #444;">0.00%</div>
                         </div>
                         <div class="indicator-card text-center">
-                            <div class="text-xs text-gray-500 mb-1">BALANCE</div>
-                            <div id="balance" class="font-headline text-lg font-bold text-gold">$--</div>
+                            <div class="section-label mb-1">BALANCE</div>
+                            <div id="balance" class="font-headline text-lg font-bold" style="color: #00ff41;">$--</div>
                         </div>
                         <div class="indicator-card text-center">
-                            <div class="text-xs text-gray-500 mb-1">EQUITY</div>
-                            <div id="equity" class="font-headline text-lg font-bold text-gray-300">$--</div>
+                            <div class="section-label mb-1">EQUITY</div>
+                            <div id="equity" class="font-headline text-lg font-bold" style="color: #666;">$--</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- ACTIVE TRADE PANEL -->
-            <div id="trade-panel" class="panel p-4 border-l-4 border-gold" style="display:none;">
+            <div id="trade-panel" class="panel p-4" style="display:none; border-left: 2px solid #00ff41;">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-gold text-lg">swap_vert</span>
-                        <h3 class="font-headline text-sm font-bold text-gold uppercase tracking-wider">Active Trade</h3>
+                        <h3 class="section-label" style="color: #00ff41; letter-spacing: 3px;">// ACTIVE TRADE</h3>
                     </div>
-                    <button onclick="closeTrade()" class="text-xs bg-red-900/50 text-red-400 border border-red-700 px-3 py-1 rounded hover:bg-red-900 transition">Close Trade</button>
+                    <button onclick="closeTrade()" class="term-btn" style="border-color: #ff0040; color: #ff0040;">CLOSE TRADE</button>
                 </div>
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                    <div class="bg-bg rounded-lg p-3 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Direction</div>
+                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                        <div class="section-label mb-1">DIRECTION</div>
                         <div id="trade-direction" class="font-headline text-lg font-bold">--</div>
                     </div>
-                    <div class="bg-bg rounded-lg p-3 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Entry Price</div>
-                        <div id="trade-entry" class="font-headline text-lg font-bold text-white">--</div>
+                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                        <div class="section-label mb-1">ENTRY PRICE</div>
+                        <div id="trade-entry" class="font-headline text-lg font-bold" style="color: #ccc;">--</div>
                     </div>
-                    <div class="bg-bg rounded-lg p-3 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Live P&L</div>
+                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                        <div class="section-label mb-1">LIVE P&L</div>
                         <div id="trade-pnl" class="font-headline text-lg font-bold">--</div>
                     </div>
-                    <div class="bg-bg rounded-lg p-3 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Time Left</div>
-                        <div id="trade-timer" class="font-headline text-lg font-bold text-yellow-400">--</div>
+                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                        <div class="section-label mb-1">TIME LEFT</div>
+                        <div id="trade-timer" class="font-headline text-lg font-bold" style="color: #666;">--</div>
                     </div>
                 </div>
 
                 <!-- TP / Entry / SL visual scale -->
-                <div class="bg-bg rounded-lg p-3 mb-3">
+                <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="mb-3">
                     <div class="flex justify-between text-xs mb-2">
-                        <span class="text-red-400">SL: <span id="trade-sl">--</span></span>
-                        <span class="text-white">Entry: <span id="trade-entry-line">--</span></span>
-                        <span class="text-green-400">TP: <span id="trade-tp">--</span></span>
+                        <span style="color: #ff0040; font-size: 10px;">SL: <span id="trade-sl">--</span></span>
+                        <span style="color: #ccc; font-size: 10px;">ENTRY: <span id="trade-entry-line">--</span></span>
+                        <span style="color: #00ff41; font-size: 10px;">TP: <span id="trade-tp">--</span></span>
                     </div>
-                    <div class="relative h-4 bg-gray-800 rounded-full overflow-hidden">
-                        <div id="trade-progress-loss" class="absolute left-0 top-0 h-full bg-red-600/50 transition-all" style="width:50%"></div>
-                        <div id="trade-progress-win" class="absolute right-0 top-0 h-full bg-green-600/50 transition-all" style="width:50%"></div>
-                        <div id="trade-price-marker" class="absolute top-0 h-full w-1 bg-white transition-all" style="left:50%"></div>
+                    <div class="relative overflow-hidden" style="height: 4px; background: #111;">
+                        <div id="trade-progress-loss" class="absolute left-0 top-0 h-full transition-all" style="width:50%; background: rgba(255,0,64,0.4);"></div>
+                        <div id="trade-progress-win" class="absolute right-0 top-0 h-full transition-all" style="width:50%; background: rgba(0,255,65,0.4);"></div>
+                        <div id="trade-price-marker" class="absolute top-0 h-full transition-all" style="left:50%; width: 2px; background: #ccc;"></div>
                     </div>
                 </div>
 
                 <!-- Trade alert banner -->
-                <div id="trade-alert" class="hidden rounded-lg px-4 py-2 text-sm font-bold text-center"></div>
+                <div id="trade-alert" class="hidden px-4 py-2 text-sm font-bold text-center" style="border: 1px solid #1a1a1a;"></div>
             </div>
 
             <!-- TECHNICAL INDICATORS GRID -->
             <div class="panel p-4">
                 <div class="flex items-center gap-2 mb-3">
-                    <span class="material-symbols-outlined text-gold text-lg">analytics</span>
-                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Technical Indicators</h2>
+                    <h2 class="section-label" style="color: #00ff41;">// TECHNICAL INDICATORS</h2>
                 </div>
                 <div class="grid grid-cols-4 gap-3" id="indicators-grid">
                     <!-- RSI -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">speed</span>
-                            <span class="text-xs text-gray-500">RSI (14)</span>
-                        </div>
-                        <div id="ind-rsi" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-rsi-label" class="text-[10px] text-gray-600">--</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">RSI (14)</div>
+                        <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-rsi-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- Stochastic -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">waves</span>
-                            <span class="text-xs text-gray-500">Stoch %K</span>
-                        </div>
-                        <div id="ind-stoch" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-stoch-label" class="text-[10px] text-gray-600">--</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">STOCH %K</div>
+                        <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-stoch-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- ATR -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">expand</span>
-                            <span class="text-xs text-gray-500">ATR</span>
-                        </div>
-                        <div id="ind-atr" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-atr-label" class="text-[10px] text-gray-600">vs avg: --</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ATR</div>
+                        <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-atr-label" style="font-size: 9px; color: #333;">vs avg: --</div>
                     </div>
                     <!-- ADX -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">trending_up</span>
-                            <span class="text-xs text-gray-500">ADX</span>
-                        </div>
-                        <div id="ind-adx" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-adx-label" class="text-[10px] text-gray-600">--</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ADX</div>
+                        <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-adx-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- BB Position -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">align_vertical_center</span>
-                            <span class="text-xs text-gray-500">BB Position</span>
-                        </div>
-                        <div id="ind-bb" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-bb-label" class="text-[10px] text-gray-600">--</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">BB POSITION</div>
+                        <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-bb-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- EMA Trend -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">show_chart</span>
-                            <span class="text-xs text-gray-500">EMA Trend</span>
-                        </div>
-                        <div id="ind-ema" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-ema-label" class="text-[10px] text-gray-600">--</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">EMA TREND</div>
+                        <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-ema-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- MACD -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">stacked_line_chart</span>
-                            <span class="text-xs text-gray-500">MACD</span>
-                        </div>
-                        <div id="ind-macd" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-macd-label" class="text-[10px] text-gray-600">--</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">MACD</div>
+                        <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-macd-label" style="font-size: 9px; color: #333;">--</div>
                     </div>
                     <!-- Candle -->
                     <div class="indicator-card">
-                        <div class="flex items-center gap-1 mb-1">
-                            <span class="material-symbols-outlined text-gray-500" style="font-size:14px">candlestick_chart</span>
-                            <span class="text-xs text-gray-500">Candle</span>
-                        </div>
-                        <div id="ind-candle" class="font-headline text-xl font-bold text-gray-400">--</div>
-                        <div id="ind-candle-label" class="text-[10px] text-gray-600">Body: --%</div>
+                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">CANDLE</div>
+                        <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #444;">--</div>
+                        <div id="ind-candle-label" style="font-size: 9px; color: #333;">Body: --%</div>
                     </div>
                 </div>
             </div>
@@ -395,21 +433,20 @@
             <!-- TRADINGVIEW CHART -->
             <div class="panel p-4">
                 <div class="flex items-center gap-2 mb-3">
-                    <span class="material-symbols-outlined text-gold text-lg">candlestick_chart</span>
-                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">XAUUSD M30 Chart</h2>
+                    <h2 class="section-label" style="color: #00ff41;">// XAUUSD M30 CHART</h2>
                 </div>
                 <div style="position: relative;">
-                    <div id="tradingview_chart" style="height: 400px; border-radius: 8px; overflow: hidden;"></div>
+                    <div id="tradingview_chart" style="height: 400px; overflow: hidden;"></div>
                     <!-- TP/SL/Entry overlay lines -->
                     <div id="chart-overlay" style="display:none; position:absolute; top:0; right:60px; bottom:30px; width:2px; pointer-events:none;">
-                        <div id="overlay-tp" style="position:absolute; right:0; width:200px; border-top:2px dashed #00e479; display:flex; align-items:center; justify-content:flex-end;">
-                            <span style="background:#00e479; color:#000; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap;">TP <span id="overlay-tp-price"></span></span>
+                        <div id="overlay-tp" style="position:absolute; right:0; width:200px; border-top:1px dashed #00ff41; display:flex; align-items:center; justify-content:flex-end;">
+                            <span style="background:#00ff41; color:#000; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">TP <span id="overlay-tp-price"></span></span>
                         </div>
-                        <div id="overlay-entry" style="position:absolute; right:0; width:200px; border-top:2px solid rgba(255,255,255,0.7); display:flex; align-items:center; justify-content:flex-end;">
-                            <span style="background:rgba(255,255,255,0.9); color:#000; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap;">ENTRY <span id="overlay-entry-price"></span></span>
+                        <div id="overlay-entry" style="position:absolute; right:0; width:200px; border-top:1px solid #ccc; display:flex; align-items:center; justify-content:flex-end;">
+                            <span style="background:#ccc; color:#000; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">ENTRY <span id="overlay-entry-price"></span></span>
                         </div>
-                        <div id="overlay-sl" style="position:absolute; right:0; width:200px; border-top:2px dashed #bd0e2f; display:flex; align-items:center; justify-content:flex-end;">
-                            <span style="background:#bd0e2f; color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:2px; white-space:nowrap;">SL <span id="overlay-sl-price"></span></span>
+                        <div id="overlay-sl" style="position:absolute; right:0; width:200px; border-top:1px dashed #ff0040; display:flex; align-items:center; justify-content:flex-end;">
+                            <span style="background:#ff0040; color:#fff; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">SL <span id="overlay-sl-price"></span></span>
                         </div>
                     </div>
                 </div>
@@ -417,65 +454,57 @@
         </div>
 
         <!-- ========== RIGHT COLUMN ========== -->
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-3">
 
             <!-- TOP REASONS -->
             <div class="panel p-5">
                 <div class="flex items-center gap-2 mb-4">
-                    <span class="material-symbols-outlined text-gold text-lg">lightbulb</span>
-                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Signal Reasons</h2>
+                    <h2 class="section-label" style="color: #00ff41;">// SIGNAL REASONS</h2>
                 </div>
                 <div id="reasons-list" class="space-y-3">
-                    <div class="text-sm text-gray-600 italic">Waiting for signal...</div>
+                    <div class="text-sm" style="color: #333; font-style: italic;">Waiting for signal...</div>
                 </div>
             </div>
 
             <!-- PERFORMANCE STATS -->
             <div class="panel p-5">
                 <div class="flex items-center gap-2 mb-4">
-                    <span class="material-symbols-outlined text-gold text-lg">bar_chart</span>
-                    <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Session Stats</h2>
+                    <h2 class="section-label" style="color: #00ff41;">// SESSION STATS</h2>
                 </div>
                 <div class="space-y-4">
                     <!-- Total Signals -->
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-400">Total Signals</span>
-                        <span id="stat-total" class="font-headline text-lg font-bold text-white">0</span>
+                        <span style="font-size: 10px; color: #444; letter-spacing: 2px; text-transform: uppercase;">TOTAL SIGNALS</span>
+                        <span id="stat-total" class="font-headline text-lg font-bold" style="color: #ccc;">0</span>
                     </div>
                     <!-- BUY count -->
                     <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-buy-green flex items-center gap-1">
-                                <span class="material-symbols-outlined" style="font-size:14px">arrow_upward</span>BUY
-                            </span>
-                            <span id="stat-buy" class="text-buy-green font-semibold">0</span>
+                        <div class="flex justify-between mb-1" style="font-size: 10px;">
+                            <span style="color: #00ff41; letter-spacing: 2px;">BUY</span>
+                            <span id="stat-buy" style="color: #00ff41; font-weight: 600;">0</span>
                         </div>
-                        <div class="w-full bg-gray-800 rounded" style="height:6px">
-                            <div id="stat-buy-bar" class="prob-bar bg-buy-green" style="width:0%;height:6px"></div>
+                        <div class="w-full" style="background: #111; height: 2px;">
+                            <div id="stat-buy-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
                         </div>
                     </div>
                     <!-- SELL count -->
                     <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-sell-red flex items-center gap-1">
-                                <span class="material-symbols-outlined" style="font-size:14px">arrow_downward</span>SELL
-                            </span>
-                            <span id="stat-sell" class="text-sell-red font-semibold">0</span>
+                        <div class="flex justify-between mb-1" style="font-size: 10px;">
+                            <span style="color: #ff0040; letter-spacing: 2px;">SELL</span>
+                            <span id="stat-sell" style="color: #ff0040; font-weight: 600;">0</span>
                         </div>
-                        <div class="w-full bg-gray-800 rounded" style="height:6px">
-                            <div id="stat-sell-bar" class="prob-bar bg-sell-red" style="width:0%;height:6px"></div>
+                        <div class="w-full" style="background: #111; height: 2px;">
+                            <div id="stat-sell-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
                         </div>
                     </div>
                     <!-- NO TRADE count -->
                     <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-gray-500 flex items-center gap-1">
-                                <span class="material-symbols-outlined" style="font-size:14px">block</span>NO TRADE
-                            </span>
-                            <span id="stat-notrade" class="text-gray-500 font-semibold">0</span>
+                        <div class="flex justify-between mb-1" style="font-size: 10px;">
+                            <span style="color: #333; letter-spacing: 2px;">NO TRADE</span>
+                            <span id="stat-notrade" style="color: #333; font-weight: 600;">0</span>
                         </div>
-                        <div class="w-full bg-gray-800 rounded" style="height:6px">
-                            <div id="stat-notrade-bar" class="prob-bar bg-gray-600" style="width:0%;height:6px"></div>
+                        <div class="w-full" style="background: #111; height: 2px;">
+                            <div id="stat-notrade-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
                         </div>
                     </div>
                 </div>
@@ -485,17 +514,16 @@
             <div class="panel p-5" style="max-height: 500px; overflow-y: auto;">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-gold text-lg">history</span>
-                        <h2 class="font-headline text-sm font-semibold text-gold uppercase tracking-wider">Signal History</h2>
+                        <h2 class="section-label" style="color: #00ff41;">// SIGNAL HISTORY</h2>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="exportCSV()" class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors rounded cursor-pointer">Export CSV</button>
-                        <button onclick="exportJSON()" class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors rounded cursor-pointer">Export JSON</button>
+                        <button onclick="exportCSV()" class="term-btn">[CSV]</button>
+                        <button onclick="exportJSON()" class="term-btn">[JSON]</button>
                     </div>
                 </div>
                 <table class="w-full history-table">
                     <thead>
-                        <tr class="text-xs text-gray-500 uppercase">
+                        <tr style="font-size: 9px; color: #333; letter-spacing: 2px; text-transform: uppercase;">
                             <th class="text-left py-2 font-medium">Time</th>
                             <th class="text-left py-2 font-medium">Price</th>
                             <th class="text-left py-2 font-medium">Signal</th>
@@ -504,7 +532,7 @@
                         </tr>
                     </thead>
                     <tbody id="history-body">
-                        <tr><td colspan="5" class="text-center text-sm text-gray-600 py-8 italic">No signals yet</td></tr>
+                        <tr><td colspan="5" class="text-center text-sm py-8" style="color: #333; font-style: italic;">No signals yet</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -523,13 +551,13 @@
             theme: "dark",
             style: "1",
             locale: "en",
-            toolbar_bg: "#1a1a2e",
+            toolbar_bg: "#000",
             enable_publishing: false,
             allow_symbol_change: false,
             hide_side_toolbar: false,
             container_id: "tradingview_chart",
-            backgroundColor: "#201f1f",
-            gridColor: "rgba(77, 71, 50, 0.1)",
+            backgroundColor: "#000000",
+            gridColor: "rgba(26, 26, 26, 0.5)",
         });
     </script>
 
