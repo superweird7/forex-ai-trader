@@ -502,7 +502,7 @@
                                 <th class="text-left py-2 font-medium">Price</th>
                                 <th class="text-left py-2 font-medium">Signal</th>
                                 <th class="text-right py-2 font-medium">Conf</th>
-                                <th class="text-right py-2 font-medium">Score</th>
+                                <th class="text-right py-2 font-medium">Result</th>
                             </tr>
                         </thead>
                         <tbody id="history-body">
@@ -740,23 +740,55 @@
         }
 
         // ---- Update history table ----
+        let _tradeResults = {};
+
+        async function fetchTradeResults() {
+            try {
+                const resp = await fetch('/api/trade/history?limit=100');
+                const data = await resp.json();
+                _tradeResults = {};
+                (data.trades || []).forEach(t => {
+                    // Match by time proximity (within 60s of signal)
+                    _tradeResults[t.started_at] = {
+                        pnl: t.pnl_points,
+                        exit: t.exit_reason,
+                        won: t.pnl_points > 0,
+                    };
+                });
+            } catch(e) {}
+        }
+        fetchTradeResults();
+        setInterval(fetchTradeResults, 30000);
+
         function updateHistory(history) {
             const tbody = document.getElementById('history-body');
             if (!history || history.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-sm text-gray-600 py-8 italic">No signals yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-sm py-8" style="color:#999; font-style:italic;">No signals yet</td></tr>';
                 return;
             }
-            // Show most recent first, limit to 30
             const rows = history.slice(-30).reverse();
             tbody.innerHTML = rows.map(h => {
                 const color = signalColor(h.signal);
+                // Find matching trade result
+                let resultBadge = '';
+                for (const [startTime, res] of Object.entries(_tradeResults)) {
+                    if (h.time && Math.abs(new Date(h.time) - new Date(startTime)) < 120000) {
+                        if (res.pnl != null) {
+                            const won = res.pnl > 0;
+                            resultBadge = `<span style="color:${won ? '#00ff41' : '#ff0040'}; font-weight:700;">${won ? 'WIN' : 'LOSS'} ${res.pnl > 0 ? '+' : ''}${res.pnl?.toFixed(1)}</span>`;
+                        } else {
+                            resultBadge = `<span style="color:#999;">${res.exit || '--'}</span>`;
+                        }
+                        break;
+                    }
+                }
                 return `
                     <tr>
-                        <td class="py-2 text-xs text-gray-400 font-mono">${h.time || '--'}</td>
-                        <td class="py-2 text-xs text-white font-headline font-semibold">${h.price ? h.price.toFixed(2) : '--'}</td>
+                        <td class="py-2 text-xs font-mono" style="color:#bbb;">${h.time || '--'}</td>
+                        <td class="py-2 text-xs font-headline font-semibold" style="color:#fff;">${h.price ? h.price.toFixed(2) : '--'}</td>
                         <td class="py-2 text-xs font-bold" style="color:${color}">${h.signal || '--'}</td>
-                        <td class="py-2 text-xs text-right text-gray-400">${h.confidence != null ? h.confidence + '%' : '--'}</td>
-                        <td class="py-2 text-xs text-right text-gold">${h.score != null ? h.score : '--'}</td>
+                        <td class="py-2 text-xs text-right" style="color:#bbb;">${h.confidence != null ? h.confidence + '%' : '--'}</td>
+                        <td class="py-2 text-xs text-right">${resultBadge || '<span style="color:#555;">--</span>'}</td>
                     </tr>
                 `;
             }).join('');
