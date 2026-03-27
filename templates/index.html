@@ -814,6 +814,7 @@
                     if (_lastSignalKey && _lastSignalKey !== signalKey && histLen !== _signalCount) {
                         // New signal fired!
                         _lastSignalTime = new Date();
+                        playSound('signal');
                         const badge = document.getElementById('signal-badge');
                         badge.style.display = 'inline-block';
                         badge.style.animation = 'none';
@@ -983,22 +984,65 @@
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
+        // Persistent AudioContext (created on first user click)
+        let _audioCtx = null;
+        document.addEventListener('click', () => {
+            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }, { once: false });
+
+        function playSound(type) {
+            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = _audioCtx;
+            if (ctx.state === 'suspended') ctx.resume();
+
+            const gain = ctx.createGain();
+            gain.connect(ctx.destination);
+
+            if (type === 'signal') {
+                // Double beep — high pitch
+                [0, 0.2].forEach(offset => {
+                    const osc = ctx.createOscillator();
+                    osc.connect(gain);
+                    osc.frequency.value = 1200;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.4, ctx.currentTime + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + 0.15);
+                    osc.start(ctx.currentTime + offset);
+                    osc.stop(ctx.currentTime + offset + 0.15);
+                });
+            } else if (type === 'trade-open') {
+                // Rising triple beep
+                [0, 0.15, 0.3].forEach((offset, i) => {
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.connect(g);
+                    g.connect(ctx.destination);
+                    osc.frequency.value = 800 + (i * 200);
+                    osc.type = 'sine';
+                    g.gain.setValueAtTime(0.4, ctx.currentTime + offset);
+                    g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + 0.12);
+                    osc.start(ctx.currentTime + offset);
+                    osc.stop(ctx.currentTime + offset + 0.12);
+                });
+            } else if (type === 'trade-close') {
+                // Low descending tone
+                const osc = ctx.createOscillator();
+                osc.connect(gain);
+                osc.frequency.setValueAtTime(600, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.4);
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.5);
+            }
+        }
+
         function sendNotification(title, body, tag) {
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification(title, { body: body, tag: tag, icon: '/static/favicon.ico' });
             }
-            // Play sound
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = tag === 'trade-close' ? 440 : 880;
-                gain.gain.value = 0.3;
-                osc.start();
-                osc.stop(ctx.currentTime + 0.15);
-            } catch(e) {}
+            playSound(tag === 'trade-close' ? 'trade-close' : tag === 'trade-open' ? 'trade-open' : 'signal');
         }
 
         // ---- Trade Panel ----
