@@ -842,7 +842,18 @@ def get_signal():
                 features = scorer.calculate_features(df)
                 result = scorer.score(features)
 
-                payload["signal"] = result["signal"]
+                # Session filter: only trade during London/NY (07:00-21:00 UTC)
+                # JustMarkets server is UTC+3, so 10:00-24:00 server time
+                utc_offset = CONFIG.get("scoring", {}).get("utc_offset", 3)
+                session_start = CONFIG.get("scoring", {}).get("session_start_utc", 7)
+                session_end = CONFIG.get("scoring", {}).get("session_end_utc", 21)
+                utc_hour = (datetime.now().hour - utc_offset) % 24
+                in_session = session_start <= utc_hour < session_end
+                filtered_signal = result["signal"] if in_session else "NO_TRADE"
+                payload["in_session"] = in_session
+                payload["utc_hour"] = utc_hour
+
+                payload["signal"] = filtered_signal
                 payload["confidence"] = round(result["confidence"] * 100, 1)
                 payload["score"] = result["score"]
                 payload["buy_prob"] = round(result["buy_prob"] * 100, 1)
@@ -1612,11 +1623,16 @@ def background_signal_checker():
                     features = scorer.calculate_features(df)
                     result = scorer.score(features)
 
+                    # Session filter
+                    utc_hour = (datetime.now().hour - 3) % 24
+                    in_session = 7 <= utc_hour < 21
+                    filtered_signal = result["signal"] if in_session else "NO_TRADE"
+
                     signal_record = {
                         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "price": tick_info["ask"] if tick_info else 0,
                         "bid": tick_info["bid"] if tick_info else 0,
-                        "signal": result["signal"],
+                        "signal": filtered_signal,
                         "confidence": round(result["confidence"] * 100, 1),
                         "score": result["score"],
                         "buy_prob": round(result.get("buy_prob", 0) * 100, 1),

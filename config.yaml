@@ -9,6 +9,9 @@ scoring:
   timeframe: M30
   bars_count: 200
   confidence_threshold: 80
+  session_start_utc: 7
+  session_end_utc: 21
+  utc_offset: 3
 alerts:
   enabled: true
   min_confidence: 90
