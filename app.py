@@ -1148,7 +1148,7 @@ def promote_model():
 # Background WebSocket signal checker
 # ---------------------------------------------------------------------------
 def background_signal_checker():
-    """Check for new M30 bars and push updates via WebSocket."""
+    """Check for new M30 bars, save to DB, send alerts, and push via WebSocket."""
     global _last_saved_bar_time
     while True:
         try:
@@ -1158,18 +1158,51 @@ def background_signal_checker():
                 df, tick_info, account_info = get_mt5_data(symbol)
                 current_bar = str(df.index[-1])
                 if current_bar != _last_saved_bar_time:
+                    _last_saved_bar_time = current_bar
                     features = scorer.calculate_features(df)
                     result = scorer.score(features)
-                    payload = {
+
+                    signal_record = {
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "price": tick_info["ask"] if tick_info else 0,
+                        "bid": tick_info["bid"] if tick_info else 0,
                         "signal": result["signal"],
                         "confidence": round(result["confidence"] * 100, 1),
                         "score": result["score"],
-                        "price": tick_info["ask"] if tick_info else 0,
-                        "bid": tick_info["bid"] if tick_info else 0,
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "new_bar": True,
+                        "buy_prob": round(result.get("buy_prob", 0) * 100, 1),
+                        "sell_prob": round(result.get("sell_prob", 0) * 100, 1),
+                        "no_trade_prob": round(result.get("no_trade_prob", 0) * 100, 1),
+                        "rsi": round(features.get("rsi14", 0), 1),
+                        "stoch_k": round(features.get("stoch_k", 0), 1),
+                        "atr": round(features.get("atr14", 0), 2),
+                        "atr_vs_avg": round(features.get("atr_vs_avg", 0), 2),
+                        "adx": round(features.get("adx", 0), 1),
+                        "bb_position": round(features.get("bb_position", 0), 3),
+                        "ema_trend": "BULLISH" if features.get("ema_trend", 0) == 1 else "BEARISH",
+                        "macd": round(features.get("macd", 0), 2),
+                        "body_ratio": round(features.get("body_ratio", 0), 2),
+                        "is_bullish": bool(features.get("is_bullish", 0)),
+                        "reasons": result.get("top_reasons", []),
+                        "symbol": symbol,
                     }
-                    socketio.emit("signal_update", payload)
+
+                    # Save to DB
+                    try:
+                        db_insert_signal(signal_record)
+                    except Exception as db_err:
+                        print(f"[WARN] BG DB insert failed: {db_err}")
+
+                    # Telegram alert
+                    send_telegram_alert(signal_record)
+
+                    # Keep in memory
+                    with history_lock:
+                        signal_history.append(signal_record)
+                        if len(signal_history) > 500:
+                            signal_history.pop(0)
+
+                    # Push to WebSocket clients
+                    socketio.emit("signal_update", signal_record)
         except Exception as e:
             print(f"[WARN] Background checker: {e}")
         socketio.sleep(10)
