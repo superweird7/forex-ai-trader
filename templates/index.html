@@ -125,7 +125,7 @@
             background: #000;
             border: 1px solid #1a1a1a;
             border-radius: 0;
-            padding: 12px;
+            padding: 10px;
         }
         .indicator-card:hover {
             border-color: #333;
@@ -171,7 +171,7 @@
         .nav-link {
             font-size: 11px;
             letter-spacing: 2px;
-            color: #888;
+            color: #999;
             text-transform: uppercase;
             font-family: 'JetBrains Mono', monospace;
             text-decoration: none;
@@ -220,15 +220,15 @@
             <!-- MT5 Status -->
             <div class="flex items-center gap-2">
                 <div id="mt5-dot" class="pulse-dot bg-buy-green"></div>
-                <span id="mt5-status" class="text-gray-500 uppercase">MT5:ONLINE</span>
+                <span id="mt5-status" class="uppercase" style="color: #999;">MT5:ONLINE</span>
             </div>
             <!-- Model Status -->
             <div class="flex items-center gap-2">
                 <div class="pulse-dot" style="background: #00ff41;"></div>
-                <span class="text-gray-500 uppercase">MDL:ACTIVE</span>
+                <span class="uppercase" style="color: #999;">MDL:ACTIVE</span>
             </div>
             <!-- Sound test -->
-            <button onclick="playSound('signal')" style="color:#555; border:1px solid #333; padding:1px 6px; font-size:9px; cursor:pointer; font-family:'JetBrains Mono',monospace;" title="Test sound">SND</button>
+            <button onclick="playSound('signal')" style="color:#999; border:1px solid #333; padding:1px 6px; font-size:9px; cursor:pointer; font-family:'JetBrains Mono',monospace;" title="Test sound">SND</button>
             <!-- Clock -->
             <span id="clock" class="font-headline tabular-nums" style="color: #999;">--:--:--</span>
         </div>
@@ -236,348 +236,332 @@
 
     <!-- ===== TICKER BAR ===== -->
     <div class="fixed left-0 right-0 z-40" style="top: 36px; background: #000; border-bottom: 1px solid #1a1a1a; overflow: hidden; height: 20px; line-height: 20px;">
-        <div id="ticker-bar" style="white-space: nowrap; animation: ticker 30s linear infinite; font-size: 11px; color: #555; letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;">
+        <div id="ticker-bar" style="white-space: nowrap; animation: ticker 30s linear infinite; font-size: 11px; color: #666; letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;">
             XAUUSD SIGNAL TERMINAL // POWERED BY XGBOOST ML // M30 TIMEFRAME // REAL-TIME MT5 DATA // LONDON+NY SESSION FOCUS // RULE-BASED SMARTFILTER // ATR VOLATILITY REGIME // CONFIDENCE THRESHOLD 80% //
         </div>
     </div>
 
-    <!-- ===== MAIN GRID ===== -->
-    <main class="px-4 pb-6" style="padding-top: 68px; display: grid; grid-template-columns: 2fr 1fr; gap: 12px; max-width: 1600px; margin: 0 auto; position: relative; z-index: 1;">
+    <!-- ===== MAIN CONTENT ===== -->
+    <div style="padding-top: 68px; max-width: 1600px; margin: 0 auto; position: relative; z-index: 1;" class="px-4 pb-6">
 
-        <!-- ========== LEFT COLUMN ========== -->
-        <div class="flex flex-col gap-3">
+        <!-- ===== ROW 1: ACTIVE TRADE PANEL (full width) ===== -->
+        <div id="trade-panel" class="panel p-3" style="display:none; border-left: 2px solid #00ff41; margin-bottom: 8px;">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <h3 class="section-label" style="color: #00ff41; letter-spacing: 3px;">// ACTIVE TRADE</h3>
+                </div>
+                <button onclick="closeTrade()" class="term-btn" style="border-color: #ff0040; color: #ff0040;">CLOSE TRADE</button>
+            </div>
 
-            <!-- SIGNAL PANEL -->
-            <div class="panel p-6">
-                <div class="flex items-start gap-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                    <div class="section-label mb-1">DIRECTION</div>
+                    <div id="trade-direction" class="font-headline text-lg font-bold" style="color: #fff;">--</div>
+                </div>
+                <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                    <div class="section-label mb-1">ENTRY PRICE</div>
+                    <div id="trade-entry" class="font-headline text-lg font-bold" style="color: #fff;">--</div>
+                </div>
+                <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                    <div class="section-label mb-1">LIVE P&L</div>
+                    <div id="trade-pnl" class="font-headline text-lg font-bold" style="color: #fff;">--</div>
+                </div>
+                <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
+                    <div class="section-label mb-1">TIME LEFT</div>
+                    <div id="trade-timer" class="font-headline text-lg font-bold" style="color: #999;">--</div>
+                </div>
+            </div>
 
-                    <!-- Confidence Gauge -->
-                    <div class="flex flex-col items-center" style="min-width: 180px;">
-                        <svg width="180" height="180" viewBox="0 0 180 180">
-                            <!-- Background ring -->
-                            <circle cx="90" cy="90" r="78" fill="none" stroke="#111" stroke-width="6"
-                                    stroke-dasharray="490" stroke-dashoffset="0"
-                                    transform="rotate(-90 90 90)" stroke-linecap="butt"/>
-                            <!-- Confidence ring -->
-                            <circle id="gauge-ring" class="gauge-ring" cx="90" cy="90" r="78" fill="none"
-                                    stroke="#00ff41" stroke-width="6"
-                                    stroke-dasharray="490" stroke-dashoffset="490"
-                                    transform="rotate(-90 90 90)" stroke-linecap="butt"/>
-                            <!-- Center text -->
-                            <text x="90" y="80" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="36" font-weight="700">
-                                <tspan id="gauge-value">--</tspan>
-                            </text>
-                            <text x="90" y="100" text-anchor="middle" fill="#999" font-family="JetBrains Mono" font-size="10" letter-spacing="3">
-                                CONFIDENCE
-                            </text>
-                        </svg>
-                    </div>
+            <!-- TP / Entry / SL visual scale -->
+            <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="mb-3">
+                <div class="flex justify-between text-xs mb-2">
+                    <span style="color: #ff0040; font-size: 10px;">SL: <span id="trade-sl">--</span></span>
+                    <span style="color: #fff; font-size: 10px;">ENTRY: <span id="trade-entry-line">--</span></span>
+                    <span style="color: #00ff41; font-size: 10px;">TP: <span id="trade-tp">--</span></span>
+                </div>
+                <div class="relative overflow-hidden" style="height: 4px; background: #111;">
+                    <div id="trade-progress-loss" class="absolute left-0 top-0 h-full transition-all" style="width:50%; background: rgba(255,0,64,0.4);"></div>
+                    <div id="trade-progress-win" class="absolute right-0 top-0 h-full transition-all" style="width:50%; background: rgba(0,255,65,0.4);"></div>
+                    <div id="trade-price-marker" class="absolute top-0 h-full transition-all" style="left:50%; width: 2px; background: #ccc;"></div>
+                </div>
+            </div>
 
-                    <!-- Signal + Probabilities -->
-                    <div class="flex-1">
-                        <!-- Signal -->
-                        <div class="mb-4">
-                            <div class="section-label mb-1">CURRENT SIGNAL</div>
-                            <div style="display:flex; align-items:center; gap:12px;">
-                                <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #ddd;">---</div>
-                                <div id="signal-badge" style="display:none; padding:2px 8px; font-size:10px; letter-spacing:2px; border:1px solid #00ff41; color:#00ff41; animation: flash 1s ease-in-out 3;">NEW</div>
+            <!-- Trade alert banner -->
+            <!-- Live Recommendation -->
+            <div id="trade-rec" style="border:1px solid #1a1a1a; padding:10px 16px; margin-bottom:8px; display:none;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div id="trade-rec-icon" style="width:12px; height:12px; background:#00ff41;"></div>
+                    <div id="trade-rec-text" style="font-size:16px; font-weight:700; letter-spacing:2px; color:#00ff41;">HOLD</div>
+                </div>
+                <div id="trade-rec-detail" style="font-size:12px; color:#999; margin-top:4px;">Waiting for data...</div>
+            </div>
+            <div id="trade-alert" class="hidden px-4 py-2 text-sm font-bold text-center" style="border: 1px solid #1a1a1a;"></div>
+        </div>
+
+        <!-- ===== ROW 2: TWO-COLUMN GRID ===== -->
+        <main style="display: grid; grid-template-columns: 65fr 35fr; gap: 8px;">
+
+            <!-- ========== LEFT COLUMN ========== -->
+            <div class="flex flex-col gap-2">
+
+                <!-- COMPACT SIGNAL BAR -->
+                <div class="panel p-3">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+
+                        <!-- Left: SVG Gauge + Signal Text -->
+                        <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+                            <svg width="140" height="140" viewBox="0 0 180 180">
+                                <!-- Background ring -->
+                                <circle cx="90" cy="90" r="78" fill="none" stroke="#111" stroke-width="6"
+                                        stroke-dasharray="490" stroke-dashoffset="0"
+                                        transform="rotate(-90 90 90)" stroke-linecap="butt"/>
+                                <!-- Confidence ring -->
+                                <circle id="gauge-ring" class="gauge-ring" cx="90" cy="90" r="78" fill="none"
+                                        stroke="#00ff41" stroke-width="6"
+                                        stroke-dasharray="490" stroke-dashoffset="490"
+                                        transform="rotate(-90 90 90)" stroke-linecap="butt"/>
+                                <!-- Center text -->
+                                <text x="90" y="80" text-anchor="middle" fill="#fff" font-family="JetBrains Mono" font-size="36" font-weight="700">
+                                    <tspan id="gauge-value">--</tspan>
+                                </text>
+                                <text x="90" y="100" text-anchor="middle" fill="#aaa" font-family="JetBrains Mono" font-size="10" letter-spacing="3">
+                                    CONFIDENCE
+                                </text>
+                            </svg>
+                            <div>
+                                <div class="section-label" style="font-size: 10px; margin-bottom: 2px;">CURRENT SIGNAL</div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <div id="signal-text" class="font-headline text-4xl font-bold" style="color: #ddd;">---</div>
+                                    <div id="signal-badge" style="display:none; padding:2px 8px; font-size:10px; letter-spacing:2px; border:1px solid #00ff41; color:#00ff41; animation: flash 1s ease-in-out 3;">NEW</div>
+                                </div>
+                                <div id="signal-age" style="font-size:11px; color:#999; margin-top:2px;">--</div>
                             </div>
-                            <div id="signal-age" style="font-size:11px; color:#555; margin-top:4px;">--</div>
                         </div>
 
-                        <!-- Probability Bars -->
-                        <div class="space-y-3 mb-4">
-                            <div>
-                                <div class="flex justify-between text-xs mb-1">
-                                    <span style="color: #999; font-size: 12px; letter-spacing: 2px;">BUY</span>
-                                    <span id="buy-prob-text" class="text-buy-green" style="font-size: 13px; font-weight: 600;">0%</span>
-                                </div>
-                                <div class="w-full" style="background: #111; height: 2px;">
-                                    <div id="buy-prob-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs mb-1">
-                                    <span style="color: #999; font-size: 12px; letter-spacing: 2px;">SELL</span>
-                                    <span id="sell-prob-text" class="text-sell-red" style="font-size: 13px; font-weight: 600;">0%</span>
-                                </div>
-                                <div class="w-full" style="background: #111; height: 2px;">
-                                    <div id="sell-prob-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs mb-1">
-                                    <span style="color: #999; font-size: 12px; letter-spacing: 2px;">NO TRADE</span>
-                                    <span id="notrade-prob-text" style="color: #888; font-size: 13px; font-weight: 600;">0%</span>
-                                </div>
-                                <div class="w-full" style="background: #111; height: 2px;">
-                                    <div id="notrade-prob-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Score Dots -->
-                        <div class="mb-4">
-                            <div class="section-label mb-2">SCORE</div>
-                            <div id="score-dots" class="flex gap-1">
-                                <!-- 10 dots rendered by JS -->
-                            </div>
-                            <div id="score-label" class="text-xs mt-1" style="color: #888; font-size: 12px;">-- / 10</div>
-                        </div>
-                    </div>
-
-                    <!-- Price / Account -->
-                    <div class="flex flex-col gap-3" style="min-width: 160px;">
-                        <div class="indicator-card text-center">
-                            <div class="section-label mb-1">PRICE</div>
+                        <!-- Middle: Price + Bid/Spread -->
+                        <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0; min-width: 130px;">
+                            <div class="section-label" style="font-size: 10px; margin-bottom: 2px;">PRICE</div>
                             <div id="price" class="font-headline text-2xl font-bold" style="color: #fff;">----</div>
-                            <div class="flex items-center justify-center gap-2 mt-1">
-                                <span id="bid" style="font-size: 11px; color: #888;">Bid: --</span>
-                                <span id="spread" style="font-size: 11px; color: #888;">Spd: --</span>
+                            <div style="display: flex; gap: 8px; margin-top: 2px;">
+                                <span id="bid" style="font-size: 11px; color: #aaa;">Bid: --</span>
+                                <span id="spread" style="font-size: 11px; color: #aaa;">Spd: --</span>
                             </div>
                         </div>
-                        <div class="indicator-card text-center">
-                            <div class="section-label mb-1">CHANGE</div>
-                            <div id="change" class="font-headline text-lg font-bold" style="color: #999;">0.00%</div>
+
+                        <!-- Right: Probabilities + Account -->
+                        <div style="display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-end;">
+                            <!-- Probabilities inline -->
+                            <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600;">
+                                <span style="color: #00ff41;">BUY <span id="buy-prob-text">0%</span></span>
+                                <span style="color: #999;">|</span>
+                                <span style="color: #ff0040;">SELL <span id="sell-prob-text">0%</span></span>
+                                <span style="color: #999;">|</span>
+                                <span style="color: #999;">NT <span id="notrade-prob-text">0%</span></span>
+                            </div>
+                            <!-- Separator -->
+                            <div style="width: 1px; height: 40px; background: #1a1a1a;"></div>
+                            <!-- Account info -->
+                            <div style="display: flex; flex-direction: column; gap: 2px; text-align: right;">
+                                <div style="font-size: 11px;">
+                                    <span style="color: #aaa; letter-spacing: 1px;">BAL</span>
+                                    <span id="balance" class="font-headline font-bold" style="color: #00ff41; margin-left: 6px;">$--</span>
+                                </div>
+                                <div style="font-size: 11px;">
+                                    <span style="color: #aaa; letter-spacing: 1px;">EQT</span>
+                                    <span id="equity" class="font-headline font-bold" style="color: #ddd; margin-left: 6px;">$--</span>
+                                </div>
+                                <div style="font-size: 11px;">
+                                    <span style="color: #aaa; letter-spacing: 1px;">CHG</span>
+                                    <span id="change" class="font-headline font-bold" style="color: #999; margin-left: 6px;">0.00%</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="indicator-card text-center">
-                            <div class="section-label mb-1">BALANCE</div>
-                            <div id="balance" class="font-headline text-lg font-bold" style="color: #00ff41;">$--</div>
-                        </div>
-                        <div class="indicator-card text-center">
-                            <div class="section-label mb-1">EQUITY</div>
-                            <div id="equity" class="font-headline text-lg font-bold" style="color: #ddd;">$--</div>
+                    </div>
+
+                    <!-- Hidden probability bars (keep for JS, display:none) -->
+                    <div style="display:none;">
+                        <div id="buy-prob-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
+                        <div id="sell-prob-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
+                        <div id="notrade-prob-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
+                    </div>
+
+                    <!-- Hidden score dots (keep for JS, display:none) -->
+                    <div style="display:none;">
+                        <div id="score-dots" class="flex gap-1"></div>
+                        <div id="score-label" class="text-xs mt-1" style="color: #999; font-size: 12px;">-- / 10</div>
+                    </div>
+                </div>
+
+                <!-- TRADINGVIEW CHART -->
+                <div class="panel p-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <h2 class="section-label" style="color: #00ff41;">// XAUUSD M30 CHART</h2>
+                    </div>
+                    <div style="position: relative;">
+                        <div id="tradingview_chart" style="height: 500px; overflow: hidden;"></div>
+                        <!-- TP/SL/Entry overlay lines -->
+                        <div id="chart-overlay" style="display:none; position:absolute; top:0; right:60px; bottom:30px; width:2px; pointer-events:none;">
+                            <div id="overlay-tp" style="position:absolute; right:0; width:200px; border-top:1px dashed #00ff41; display:flex; align-items:center; justify-content:flex-end;">
+                                <span style="background:#00ff41; color:#000; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">TP <span id="overlay-tp-price"></span></span>
+                            </div>
+                            <div id="overlay-entry" style="position:absolute; right:0; width:200px; border-top:1px solid #ccc; display:flex; align-items:center; justify-content:flex-end;">
+                                <span style="background:#ccc; color:#000; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">ENTRY <span id="overlay-entry-price"></span></span>
+                            </div>
+                            <div id="overlay-sl" style="position:absolute; right:0; width:200px; border-top:1px dashed #ff0040; display:flex; align-items:center; justify-content:flex-end;">
+                                <span style="background:#ff0040; color:#fff; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">SL <span id="overlay-sl-price"></span></span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ACTIVE TRADE PANEL -->
-            <div id="trade-panel" class="panel p-4" style="display:none; border-left: 2px solid #00ff41;">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <h3 class="section-label" style="color: #00ff41; letter-spacing: 3px;">// ACTIVE TRADE</h3>
-                    </div>
-                    <button onclick="closeTrade()" class="term-btn" style="border-color: #ff0040; color: #ff0040;">CLOSE TRADE</button>
-                </div>
+            <!-- ========== RIGHT COLUMN ========== -->
+            <div class="flex flex-col gap-2">
 
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
-                        <div class="section-label mb-1">DIRECTION</div>
-                        <div id="trade-direction" class="font-headline text-lg font-bold">--</div>
+                <!-- TOP REASONS -->
+                <div class="panel p-3">
+                    <div class="flex items-center gap-2 mb-3">
+                        <h2 class="section-label" style="color: #00ff41;">// SIGNAL REASONS</h2>
                     </div>
-                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
-                        <div class="section-label mb-1">ENTRY PRICE</div>
-                        <div id="trade-entry" class="font-headline text-lg font-bold" style="color: #ccc;">--</div>
-                    </div>
-                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
-                        <div class="section-label mb-1">LIVE P&L</div>
-                        <div id="trade-pnl" class="font-headline text-lg font-bold">--</div>
-                    </div>
-                    <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="text-center">
-                        <div class="section-label mb-1">TIME LEFT</div>
-                        <div id="trade-timer" class="font-headline text-lg font-bold" style="color: #999;">--</div>
+                    <div id="reasons-list" class="space-y-2">
+                        <div class="text-sm" style="color: #ccc; font-style: italic;">Waiting for signal...</div>
                     </div>
                 </div>
 
-                <!-- TP / Entry / SL visual scale -->
-                <div style="background: #050505; border: 1px solid #1a1a1a; padding: 12px;" class="mb-3">
-                    <div class="flex justify-between text-xs mb-2">
-                        <span style="color: #ff0040; font-size: 10px;">SL: <span id="trade-sl">--</span></span>
-                        <span style="color: #ccc; font-size: 10px;">ENTRY: <span id="trade-entry-line">--</span></span>
-                        <span style="color: #00ff41; font-size: 10px;">TP: <span id="trade-tp">--</span></span>
+                <!-- TECHNICAL INDICATORS GRID (2x2: RSI, ATR, EMA, MACD) -->
+                <div class="panel p-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <h2 class="section-label" style="color: #00ff41;">// KEY INDICATORS</h2>
                     </div>
-                    <div class="relative overflow-hidden" style="height: 4px; background: #111;">
-                        <div id="trade-progress-loss" class="absolute left-0 top-0 h-full transition-all" style="width:50%; background: rgba(255,0,64,0.4);"></div>
-                        <div id="trade-progress-win" class="absolute right-0 top-0 h-full transition-all" style="width:50%; background: rgba(0,255,65,0.4);"></div>
-                        <div id="trade-price-marker" class="absolute top-0 h-full transition-all" style="left:50%; width: 2px; background: #ccc;"></div>
+                    <div class="grid grid-cols-2 gap-2" id="indicators-grid">
+                        <!-- RSI -->
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">RSI (14)</div>
+                            <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-rsi-label" style="font-size: 11px; color: #999;">--</div>
+                        </div>
+                        <!-- ATR -->
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">ATR</div>
+                            <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-atr-label" style="font-size: 11px; color: #999;">vs avg: --</div>
+                        </div>
+                        <!-- EMA Trend -->
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">EMA TREND</div>
+                            <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-ema-label" style="font-size: 11px; color: #999;">--</div>
+                        </div>
+                        <!-- MACD -->
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">MACD</div>
+                            <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-macd-label" style="font-size: 11px; color: #999;">--</div>
+                        </div>
+                    </div>
+                    <!-- Hidden indicators (Stoch, ADX, BB, Candle) — kept for JS -->
+                    <div style="display:none;">
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">STOCH %K</div>
+                            <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-stoch-label" style="font-size: 11px; color: #999;">--</div>
+                        </div>
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">ADX</div>
+                            <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-adx-label" style="font-size: 11px; color: #999;">--</div>
+                        </div>
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">BB POSITION</div>
+                            <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-bb-label" style="font-size: 11px; color: #999;">--</div>
+                        </div>
+                        <div class="indicator-card">
+                            <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px; color: #aaa;">CANDLE</div>
+                            <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #999;">--</div>
+                            <div id="ind-candle-label" style="font-size: 11px; color: #999;">Body: --%</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Trade alert banner -->
-                <!-- Live Recommendation -->
-                <div id="trade-rec" style="border:1px solid #1a1a1a; padding:10px 16px; margin-bottom:8px; display:none;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div id="trade-rec-icon" style="width:12px; height:12px; background:#00ff41;"></div>
-                        <div id="trade-rec-text" style="font-size:16px; font-weight:700; letter-spacing:2px; color:#00ff41;">HOLD</div>
+                <!-- SIGNAL HISTORY -->
+                <div class="panel p-3" style="max-height: 500px; overflow-y: auto;">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <h2 class="section-label" style="color: #00ff41;">// SIGNAL HISTORY</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportCSV()" class="term-btn">[CSV]</button>
+                            <button onclick="exportJSON()" class="term-btn">[JSON]</button>
+                        </div>
                     </div>
-                    <div id="trade-rec-detail" style="font-size:12px; color:#999; margin-top:4px;">Waiting for data...</div>
+                    <table class="w-full history-table">
+                        <thead>
+                            <tr style="font-size: 11px; color: #aaa; letter-spacing: 2px; text-transform: uppercase;">
+                                <th class="text-left py-2 font-medium">Time</th>
+                                <th class="text-left py-2 font-medium">Price</th>
+                                <th class="text-left py-2 font-medium">Signal</th>
+                                <th class="text-right py-2 font-medium">Conf</th>
+                                <th class="text-right py-2 font-medium">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            <tr><td colspan="5" class="text-center text-sm py-8" style="color: #999; font-style: italic;">No signals yet</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div id="trade-alert" class="hidden px-4 py-2 text-sm font-bold text-center" style="border: 1px solid #1a1a1a;"></div>
-            </div>
 
-            <!-- TECHNICAL INDICATORS GRID -->
-            <div class="panel p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <h2 class="section-label" style="color: #00ff41;">// TECHNICAL INDICATORS</h2>
-                </div>
-                <div class="grid grid-cols-4 gap-3" id="indicators-grid">
-                    <!-- RSI -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">RSI (14)</div>
-                        <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-rsi-label" style="font-size: 11px; color: #888;">--</div>
-                    </div>
-                    <!-- Stochastic -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">STOCH %K</div>
-                        <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-stoch-label" style="font-size: 11px; color: #888;">--</div>
-                    </div>
-                    <!-- ATR -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">ATR</div>
-                        <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-atr-label" style="font-size: 11px; color: #888;">vs avg: --</div>
-                    </div>
-                    <!-- ADX -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">ADX</div>
-                        <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-adx-label" style="font-size: 11px; color: #888;">--</div>
-                    </div>
-                    <!-- BB Position -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">BB POSITION</div>
-                        <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-bb-label" style="font-size: 11px; color: #888;">--</div>
-                    </div>
-                    <!-- EMA Trend -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">EMA TREND</div>
-                        <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-ema-label" style="font-size: 11px; color: #888;">--</div>
-                    </div>
-                    <!-- MACD -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">MACD</div>
-                        <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-macd-label" style="font-size: 11px; color: #888;">--</div>
-                    </div>
-                    <!-- Candle -->
-                    <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">CANDLE</div>
-                        <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-candle-label" style="font-size: 11px; color: #888;">Body: --%</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TRADINGVIEW CHART -->
-            <div class="panel p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <h2 class="section-label" style="color: #00ff41;">// XAUUSD M30 CHART</h2>
-                </div>
-                <div style="position: relative;">
-                    <div id="tradingview_chart" style="height: 400px; overflow: hidden;"></div>
-                    <!-- TP/SL/Entry overlay lines -->
-                    <div id="chart-overlay" style="display:none; position:absolute; top:0; right:60px; bottom:30px; width:2px; pointer-events:none;">
-                        <div id="overlay-tp" style="position:absolute; right:0; width:200px; border-top:1px dashed #00ff41; display:flex; align-items:center; justify-content:flex-end;">
-                            <span style="background:#00ff41; color:#000; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">TP <span id="overlay-tp-price"></span></span>
+                <!-- SESSION STATS (hidden — data is in History page) -->
+                <div style="display:none;">
+                    <div class="panel p-3">
+                        <div class="flex items-center gap-2 mb-3">
+                            <h2 class="section-label" style="color: #00ff41;">// SESSION STATS</h2>
                         </div>
-                        <div id="overlay-entry" style="position:absolute; right:0; width:200px; border-top:1px solid #ccc; display:flex; align-items:center; justify-content:flex-end;">
-                            <span style="background:#ccc; color:#000; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">ENTRY <span id="overlay-entry-price"></span></span>
-                        </div>
-                        <div id="overlay-sl" style="position:absolute; right:0; width:200px; border-top:1px dashed #ff0040; display:flex; align-items:center; justify-content:flex-end;">
-                            <span style="background:#ff0040; color:#fff; font-size:9px; font-weight:700; padding:1px 6px; font-family:'JetBrains Mono',monospace; white-space:nowrap;">SL <span id="overlay-sl-price"></span></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ========== RIGHT COLUMN ========== -->
-        <div class="flex flex-col gap-3">
-
-            <!-- TOP REASONS -->
-            <div class="panel p-5">
-                <div class="flex items-center gap-2 mb-4">
-                    <h2 class="section-label" style="color: #00ff41;">// SIGNAL REASONS</h2>
-                </div>
-                <div id="reasons-list" class="space-y-3">
-                    <div class="text-sm" style="color: #888; font-style: italic;">Waiting for signal...</div>
-                </div>
-            </div>
-
-            <!-- PERFORMANCE STATS -->
-            <div class="panel p-5">
-                <div class="flex items-center gap-2 mb-4">
-                    <h2 class="section-label" style="color: #00ff41;">// SESSION STATS</h2>
-                </div>
-                <div class="space-y-4">
-                    <!-- Total Signals -->
-                    <div class="flex justify-between items-center">
-                        <span style="font-size: 10px; color: #999; letter-spacing: 2px; text-transform: uppercase;">TOTAL SIGNALS</span>
-                        <span id="stat-total" class="font-headline text-lg font-bold" style="color: #ccc;">0</span>
-                    </div>
-                    <!-- BUY count -->
-                    <div>
-                        <div class="flex justify-between mb-1" style="font-size: 10px;">
-                            <span style="color: #00ff41; letter-spacing: 2px;">BUY</span>
-                            <span id="stat-buy" style="color: #00ff41; font-weight: 600;">0</span>
-                        </div>
-                        <div class="w-full" style="background: #111; height: 2px;">
-                            <div id="stat-buy-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
-                        </div>
-                    </div>
-                    <!-- SELL count -->
-                    <div>
-                        <div class="flex justify-between mb-1" style="font-size: 10px;">
-                            <span style="color: #ff0040; letter-spacing: 2px;">SELL</span>
-                            <span id="stat-sell" style="color: #ff0040; font-weight: 600;">0</span>
-                        </div>
-                        <div class="w-full" style="background: #111; height: 2px;">
-                            <div id="stat-sell-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
-                        </div>
-                    </div>
-                    <!-- NO TRADE count -->
-                    <div>
-                        <div class="flex justify-between mb-1" style="font-size: 10px;">
-                            <span style="color: #888; letter-spacing: 2px;">NO TRADE</span>
-                            <span id="stat-notrade" style="color: #888; font-weight: 600;">0</span>
-                        </div>
-                        <div class="w-full" style="background: #111; height: 2px;">
-                            <div id="stat-notrade-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span style="font-size: 10px; color: #999; letter-spacing: 2px; text-transform: uppercase;">TOTAL SIGNALS</span>
+                                <span id="stat-total" class="font-headline text-lg font-bold" style="color: #ccc;">0</span>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1" style="font-size: 10px;">
+                                    <span style="color: #00ff41; letter-spacing: 2px;">BUY</span>
+                                    <span id="stat-buy" style="color: #00ff41; font-weight: 600;">0</span>
+                                </div>
+                                <div class="w-full" style="background: #111; height: 2px;">
+                                    <div id="stat-buy-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1" style="font-size: 10px;">
+                                    <span style="color: #ff0040; letter-spacing: 2px;">SELL</span>
+                                    <span id="stat-sell" style="color: #ff0040; font-weight: 600;">0</span>
+                                </div>
+                                <div class="w-full" style="background: #111; height: 2px;">
+                                    <div id="stat-sell-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1" style="font-size: 10px;">
+                                    <span style="color: #999; letter-spacing: 2px;">NO TRADE</span>
+                                    <span id="stat-notrade" style="color: #999; font-weight: 600;">0</span>
+                                </div>
+                                <div class="w-full" style="background: #111; height: 2px;">
+                                    <div id="stat-notrade-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- SIGNAL HISTORY -->
-            <div class="panel p-5" style="max-height: 500px; overflow-y: auto;">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <h2 class="section-label" style="color: #00ff41;">// SIGNAL HISTORY</h2>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="exportCSV()" class="term-btn">[CSV]</button>
-                        <button onclick="exportJSON()" class="term-btn">[JSON]</button>
-                    </div>
-                </div>
-                <table class="w-full history-table">
-                    <thead>
-                        <tr style="font-size: 11px; color: #888; letter-spacing: 2px; text-transform: uppercase;">
-                            <th class="text-left py-2 font-medium">Time</th>
-                            <th class="text-left py-2 font-medium">Price</th>
-                            <th class="text-left py-2 font-medium">Signal</th>
-                            <th class="text-right py-2 font-medium">Conf</th>
-                            <th class="text-right py-2 font-medium">Score</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-body">
-                        <tr><td colspan="5" class="text-center text-sm py-8" style="color: #888; font-style: italic;">No signals yet</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
     <!-- TradingView Widget -->
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <script type="text/javascript">
         new TradingView.widget({
             width: "100%",
-            height: 400,
+            height: 500,
             symbol: "OANDA:XAUUSD",
             interval: "30",
             timezone: "Etc/UTC",
