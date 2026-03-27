@@ -917,13 +917,40 @@
         }
 
         // ---- Trade Panel ----
+        // ---- Real-time trade tracking ----
+        let _activeTrade = null;
+        let _tradeTimerInterval = null;
+
+        function startTradeTimer() {
+            if (_tradeTimerInterval) clearInterval(_tradeTimerInterval);
+            _tradeTimerInterval = setInterval(() => {
+                if (!_activeTrade) return;
+                const started = new Date(_activeTrade.started_at).getTime();
+                const maxDur = (_activeTrade.max_duration_sec || 1800) * 1000;
+                const elapsed = Date.now() - started;
+                const remaining = Math.max(0, Math.floor((maxDur - elapsed) / 1000));
+
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                const timerEl = document.getElementById('trade-timer');
+                if (timerEl) {
+                    timerEl.textContent = remaining > 0 ? `${mins}:${secs.toString().padStart(2,'0')}` : 'EXPIRED';
+                    timerEl.style.color = remaining > 60 ? '#facc15' : remaining > 0 ? '#f97316' : '#ef4444';
+                }
+            }, 1000);
+        }
+
         function updateTradePanel(trade) {
             const panel = document.getElementById('trade-panel');
             if (!trade) {
                 panel.style.display = 'none';
                 updateChartOverlay(null);
+                _activeTrade = null;
+                if (_tradeTimerInterval) clearInterval(_tradeTimerInterval);
                 return;
             }
+            _activeTrade = trade;
+            if (!_tradeTimerInterval) startTradeTimer();
             updateChartOverlay(trade);
             panel.style.display = 'block';
             const isBuy = trade.direction === 'BUY';
@@ -942,13 +969,7 @@
             pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + ' pts';
             pnlEl.style.color = pnl >= 0 ? '#00e479' : '#bd0e2f';
 
-            // Timer
-            const remaining = trade.remaining_sec || 0;
-            const mins = Math.floor(remaining / 60);
-            const secs = remaining % 60;
-            const timerEl = document.getElementById('trade-timer');
-            timerEl.textContent = remaining > 0 ? `${mins}:${secs.toString().padStart(2,'0')}` : 'EXPIRED';
-            timerEl.style.color = remaining > 60 ? '#facc15' : remaining > 0 ? '#f97316' : '#ef4444';
+            // Timer is handled by startTradeTimer() interval (1s updates)
 
             // Progress bar (position between SL and TP)
             const sl = trade.sl_price || 0;
