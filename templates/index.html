@@ -134,6 +134,16 @@
         /* TradingView container */
         #tradingview_chart { border-radius: 0; overflow: hidden; }
 
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        @keyframes signal-pulse {
+            0% { text-shadow: none; }
+            50% { text-shadow: 0 0 20px currentColor; }
+            100% { text-shadow: none; }
+        }
+
         /* Ticker animation */
         @keyframes ticker {
             0% { transform: translateX(100%); }
@@ -266,7 +276,11 @@
                         <!-- Signal -->
                         <div class="mb-4">
                             <div class="section-label mb-1">CURRENT SIGNAL</div>
-                            <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #999;">---</div>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #999;">---</div>
+                                <div id="signal-badge" style="display:none; padding:2px 8px; font-size:10px; letter-spacing:2px; border:1px solid #00ff41; color:#00ff41; animation: flash 1s ease-in-out 3;">NEW</div>
+                            </div>
+                            <div id="signal-age" style="font-size:11px; color:#555; margin-top:4px;">--</div>
                         </div>
 
                         <!-- Probability Bars -->
@@ -579,6 +593,9 @@
         let buyCount = 0;
         let sellCount = 0;
         let noTradeCount = 0;
+        let _lastSignalTime = null;
+        let _lastSignalKey = null; // tracks signal identity to detect new ones
+        let _signalCount = 0;
 
         // ---- Reason emoji map ----
         const reasonEmojis = {
@@ -615,6 +632,17 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // Signal age updater
+        setInterval(() => {
+            const ageEl = document.getElementById('signal-age');
+            if (!_lastSignalTime) { ageEl.textContent = '--'; return; }
+            const secs = Math.floor((Date.now() - _lastSignalTime.getTime()) / 1000);
+            if (secs < 60) ageEl.textContent = `SIGNAL FIRED ${secs}s AGO`;
+            else if (secs < 3600) ageEl.textContent = `SIGNAL FIRED ${Math.floor(secs/60)}m ${secs%60}s AGO`;
+            else ageEl.textContent = `SIGNAL FIRED ${Math.floor(secs/3600)}h ${Math.floor((secs%3600)/60)}m AGO`;
+            ageEl.style.color = secs < 30 ? '#00ff41' : secs < 120 ? '#888' : '#555';
+        }, 1000);
 
         // ---- Color helpers ----
         function signalColor(signal) {
@@ -779,6 +807,24 @@
                     const sig = (d.confidence >= 80) ? rawSig : 'NO TRADE';
                     sigEl.textContent = sig;
                     sigEl.style.color = signalColor(sig === 'NO TRADE' ? 'NO_TRADE' : sig);
+
+                    // Detect new signal (different from last one)
+                    const signalKey = `${d.timestamp}_${sig}_${d.confidence}`;
+                    const histLen = (d.history || []).length;
+                    if (_lastSignalKey && _lastSignalKey !== signalKey && histLen !== _signalCount) {
+                        // New signal fired!
+                        _lastSignalTime = new Date();
+                        const badge = document.getElementById('signal-badge');
+                        badge.style.display = 'inline-block';
+                        badge.style.animation = 'none';
+                        badge.offsetHeight; // force reflow
+                        badge.style.animation = 'flash 1s ease-in-out 5';
+                        sigEl.style.animation = 'signal-pulse 0.5s ease-in-out 3';
+                        setTimeout(() => { sigEl.style.animation = ''; }, 1500);
+                        setTimeout(() => { badge.style.display = 'none'; }, 15000);
+                    }
+                    _lastSignalKey = signalKey;
+                    _signalCount = histLen;
 
                     // Confidence gauge
                     updateGauge(d.confidence);
