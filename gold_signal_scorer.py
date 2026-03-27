@@ -358,6 +358,23 @@ class GoldSignalScorer:
             ),
         )
 
+        # NEW FEATURES (v2 model)
+        f["rsi_change_3"] = f["rsi14"].diff(3)
+        f["rsi_change_6"] = f["rsi14"].diff(6)
+        f["macd_histogram"] = f["macd"] - f["macd_signal"]
+        f["macd_hist_change"] = f["macd_histogram"].diff(3)
+        f["momentum_3"] = df["close"].diff(3)
+        f["momentum_6"] = df["close"].diff(6)
+        f["momentum_12"] = df["close"].diff(12)
+        f["momentum_accel"] = f["momentum_6"].diff(3)
+        f["session_position"] = np.where(
+            (df["high"].rolling(16).max() - df["low"].rolling(16).min()) > 0,
+            (df["close"] - df["low"].rolling(16).min()) / (df["high"].rolling(16).max() - df["low"].rolling(16).min()),
+            0.5,
+        )
+        f["atr_change"] = f["atr14"].diff(5)
+        f["ema_gap_change"] = f["ema_gap_pct"].diff(3)
+
         return f
 
     # ------------------------------------------------------------------

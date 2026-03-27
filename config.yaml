@@ -1,7 +1,7 @@
 paths:
   python_dir: D:/FOREX/python
-  model_path: D:/FOREX/models/gold_signal_model.json
-  config_path: D:/FOREX/models/gold_signal_config.json
+  model_path: D:/FOREX/models/gold_signal_model_20260328_021410.json
+  config_path: D:/FOREX/models/gold_signal_config_20260328_021410.json
   mt5_terminal: C:/Program Files/MetaTrader 5/terminal64.exe
   data_dir: D:/FOREX/data
 scoring:
