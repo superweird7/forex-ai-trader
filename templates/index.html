@@ -666,11 +666,12 @@
                         mt5Status.textContent = 'MT5 Offline';
                     }
 
-                    // Signal text
+                    // Signal text — filter below 80% confidence to NO TRADE
                     const sigEl = document.getElementById('signal-text');
-                    const sig = (d.signal || 'NO_TRADE').toUpperCase();
+                    const rawSig = (d.signal || 'NO_TRADE').toUpperCase();
+                    const sig = (d.confidence >= 80) ? rawSig : 'NO TRADE';
                     sigEl.textContent = sig;
-                    sigEl.style.color = signalColor(sig);
+                    sigEl.style.color = signalColor(sig === 'NO TRADE' ? 'NO_TRADE' : sig);
 
                     // Confidence gauge
                     updateGauge(d.confidence);
