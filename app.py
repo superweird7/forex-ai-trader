@@ -13,7 +13,8 @@ from threading import Lock
 
 import yaml
 from dotenv import load_dotenv
-from flask import Flask, render_template, jsonify
+from functools import wraps
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 
 # Load environment and config
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -36,6 +37,24 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.jinja_env.auto_reload = True
 app.jinja_env.bytecode_cache = None
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Check API key header first
+        api_key = request.headers.get("X-API-Key")
+        if api_key and api_key == os.getenv("DASHBOARD_API_KEY"):
+            return f(*args, **kwargs)
+        # Check session
+        if session.get("authenticated"):
+            return f(*args, **kwargs)
+        # Redirect to login for browser, 401 for API
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Unauthorized"}), 401
+        return redirect(url_for("login"))
+    return decorated
+
 
 signal_history = []
 history_lock = Lock()
@@ -295,12 +314,32 @@ def reset_daily_stats_if_needed():
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if (username == os.getenv("DASHBOARD_USER") and
+                password == os.getenv("DASHBOARD_PASS")):
+            session["authenticated"] = True
+            return redirect(url_for("index"))
+        return render_template("login.html", error="Invalid credentials")
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 
 @app.route("/api/signal")
+@login_required
 def get_signal():
     """Main endpoint: fetch live data, score, return everything."""
     reset_daily_stats_if_needed()
@@ -491,12 +530,14 @@ def get_signal():
 
 
 @app.route("/api/history")
+@login_required
 def get_history():
     with history_lock:
         return jsonify(signal_history[-20:])
 
 
 @app.route("/api/export")
+@login_required
 def export_history():
     """Export full signal history as CSV for later analysis."""
     import csv
@@ -553,6 +594,7 @@ def export_history():
 
 
 @app.route("/api/export/json")
+@login_required
 def export_history_json():
     """Export full signal history as JSON for later analysis."""
     with history_lock:
@@ -567,9 +609,9 @@ def export_history_json():
 
 
 @app.route("/api/signals")
+@login_required
 def api_signals():
     """Query signals from the database with filters."""
-    from flask import request
     limit = request.args.get("limit", 50, type=int)
     offset = request.args.get("offset", 0, type=int)
     signal_filter = request.args.get("signal", None)
@@ -583,12 +625,14 @@ def api_signals():
 
 
 @app.route("/api/signals/count")
+@login_required
 def api_signals_count():
     """Get total signal counts from the database."""
     return jsonify(db_get_stats())
 
 
 @app.route("/api/status")
+@login_required
 def get_status():
     """Quick health check."""
     scorer = get_scorer()
