@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - XAUUSD Signal Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#131313',
+                        panel: '#201f1f',
+                        border: 'rgba(77, 71, 50, 0.15)',
+                        gold: '#ffd700',
+                        'gold-dim': '#b8960f',
+                        'buy-green': '#00e479',
+                        'buy-bright': '#34ff8d',
+                        'sell-red': '#bd0e2f',
+                        'neutral-gray': '#6b7280',
+                    },
+                    fontFamily: {
+                        headline: ['Space Grotesk', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: #131313;
+            font-family: 'Inter', sans-serif;
+            color: #e5e5e5;
+        }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-body { font-family: 'Inter', sans-serif; }
+
+        .panel {
+            background: #201f1f;
+            border: 1px solid rgba(77, 71, 50, 0.15);
+            border-radius: 12px;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #131313; }
+        ::-webkit-scrollbar-thumb { background: #4d4732; border-radius: 3px; }
+
+        /* Range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffd700;
+            cursor: pointer;
+            border: 2px solid #131313;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffd700;
+            cursor: pointer;
+            border: 2px solid #131313;
+        }
+
+        /* Toggle switch */
+        .toggle-track {
+            width: 48px;
+            height: 26px;
+            border-radius: 13px;
+            background: #555;
+            cursor: pointer;
+            transition: background 0.3s;
+            position: relative;
+        }
+        .toggle-track.active {
+            background: #00e479;
+        }
+        .toggle-knob {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: left 0.3s;
+        }
+        .toggle-track.active .toggle-knob {
+            left: 25px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-3 flex items-center justify-between" style="background: rgba(19,19,19,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(77,71,50,0.15);">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-gold text-2xl">monitoring</span>
+            <h1 class="font-headline text-lg font-bold text-white tracking-tight">GOLD AI SIGNAL SCORER</h1>
+            <nav class="flex items-center gap-4 ml-4">
+                <a href="/" class="text-gray-400 hover:text-gold text-sm font-medium transition">Dashboard</a>
+                <a href="/history" class="text-gray-400 hover:text-gold text-sm font-medium transition">History</a>
+                <a href="/simulate" class="text-gray-400 hover:text-gold text-sm font-medium transition">Simulator</a>
+                <a href="/admin/models" class="text-gray-400 hover:text-gold text-sm font-medium transition">Admin</a>
+                <a href="/settings" class="text-gold text-sm font-semibold border-b border-gold pb-0.5">Settings</a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/logout" class="flex items-center gap-1 text-gray-400 hover:text-red-400 text-sm transition">
+                <span class="material-symbols-outlined text-base">logout</span>
+                Logout
+            </a>
+        </div>
+    </header>
+
+    <!-- Toast notification -->
+    <div id="toast" class="fixed top-20 right-6 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none z-50"></div>
+
+    <!-- Main Content -->
+    <main class="pt-20 px-6 pb-12 max-w-3xl mx-auto">
+        <div class="mb-8">
+            <h2 class="font-headline text-2xl font-bold text-white">Settings</h2>
+            <p class="text-gray-500 text-sm mt-1">Configure signal scoring, alerts, and account credentials</p>
+        </div>
+
+        <!-- Section 1: Signal Settings -->
+        <div class="panel p-6 mb-6 border-l-4" style="border-left-color: #ffd700;">
+            <h3 class="font-headline text-lg font-semibold text-gold mb-6 flex items-center gap-2">
+                <span class="material-symbols-outlined">tune</span>
+                Signal Settings
+            </h3>
+
+            <div class="space-y-6">
+                <!-- Confidence Threshold -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-300">Confidence Threshold</label>
+                        <span id="conf-threshold-val" class="text-sm font-semibold text-gold tabular-nums">80</span>
+                    </div>
+                    <input type="range" id="conf-threshold" min="0" max="100" value="80"
+                        oninput="document.getElementById('conf-threshold-val').textContent = this.value">
+                    <p class="text-xs text-gray-500 mt-1">Minimum confidence % to highlight a signal as actionable</p>
+                </div>
+
+                <!-- Default Symbol -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Default Symbol</label>
+                    <select id="default-symbol" class="w-full bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:border-gold focus:outline-none">
+                    </select>
+                </div>
+
+                <!-- Timeframe (read-only) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Timeframe</label>
+                    <div class="bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-400">M30</div>
+                    <p class="text-xs text-gray-500 mt-1">Fixed to M30 for the XGBoost model</p>
+                </div>
+            </div>
+
+            <button onclick="saveSignalSettings()" class="mt-6 px-6 py-2.5 bg-gold text-black font-semibold text-sm rounded-lg hover:brightness-110 transition flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">save</span>
+                Save Signal Settings
+            </button>
+        </div>
+
+        <!-- Section 2: Alert Settings -->
+        <div class="panel p-6 mb-6 border-l-4" style="border-left-color: #00e479;">
+            <h3 class="font-headline text-lg font-semibold text-buy-green mb-6 flex items-center gap-2">
+                <span class="material-symbols-outlined">notifications</span>
+                Alert Settings
+            </h3>
+
+            <div class="space-y-6">
+                <!-- Telegram Alerts Toggle -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="text-sm font-medium text-gray-300">Telegram Alerts</label>
+                        <p class="text-xs text-gray-500 mt-0.5">Send signal alerts to Telegram when confidence exceeds threshold</p>
+                    </div>
+                    <div id="telegram-toggle" class="toggle-track" onclick="toggleTelegram()">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+
+                <!-- Min Confidence for Alerts -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-300">Min Confidence for Alerts</label>
+                        <span id="alert-conf-val" class="text-sm font-semibold text-buy-green tabular-nums">90</span>
+                    </div>
+                    <input type="range" id="alert-conf" min="0" max="100" value="90"
+                        oninput="document.getElementById('alert-conf-val').textContent = this.value">
+                </div>
+
+                <!-- Telegram Bot Token -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Telegram Bot Token</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="tg-bot-token" placeholder="Enter bot token"
+                            class="flex-1 bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:border-gold focus:outline-none">
+                        <button onclick="toggleVisibility('tg-bot-token', 'tg-bot-eye')" class="px-3 py-2 bg-bg border border-gray-700 rounded-lg hover:border-gray-500 transition">
+                            <span id="tg-bot-eye" class="material-symbols-outlined text-gray-400 text-base">visibility</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Telegram Chat ID -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Telegram Chat ID</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="tg-chat-id" placeholder="Enter chat ID"
+                            class="flex-1 bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:border-gold focus:outline-none">
+                        <button onclick="toggleVisibility('tg-chat-id', 'tg-chat-eye')" class="px-3 py-2 bg-bg border border-gray-700 rounded-lg hover:border-gray-500 transition">
+                            <span id="tg-chat-eye" class="material-symbols-outlined text-gray-400 text-base">visibility</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="saveAlertSettings()" class="mt-6 px-6 py-2.5 bg-gold text-black font-semibold text-sm rounded-lg hover:brightness-110 transition flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">save</span>
+                Save Alert Settings
+            </button>
+        </div>
+
+        <!-- Section 3: Account Settings -->
+        <div class="panel p-6 mb-6 border-l-4" style="border-left-color: #bd0e2f;">
+            <h3 class="font-headline text-lg font-semibold text-sell-red mb-6 flex items-center gap-2">
+                <span class="material-symbols-outlined">admin_panel_settings</span>
+                Account Settings
+            </h3>
+
+            <div class="space-y-6">
+                <!-- Username -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                    <input type="text" id="acc-username" placeholder="Username"
+                        class="w-full bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:border-gold focus:outline-none">
+                </div>
+
+                <!-- New Password -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="acc-password" placeholder="Leave blank to keep current"
+                            class="flex-1 bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:border-gold focus:outline-none">
+                        <button onclick="toggleVisibility('acc-password', 'acc-pass-eye')" class="px-3 py-2 bg-bg border border-gray-700 rounded-lg hover:border-gray-500 transition">
+                            <span id="acc-pass-eye" class="material-symbols-outlined text-gray-400 text-base">visibility</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- API Key -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">API Key</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="acc-api-key" placeholder="Dashboard API key"
+                            class="flex-1 bg-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:border-gold focus:outline-none">
+                        <button onclick="toggleVisibility('acc-api-key', 'acc-key-eye')" class="px-3 py-2 bg-bg border border-gray-700 rounded-lg hover:border-gray-500 transition">
+                            <span id="acc-key-eye" class="material-symbols-outlined text-gray-400 text-base">visibility</span>
+                        </button>
+                        <button onclick="regenerateApiKey()" class="px-3 py-2 bg-bg border border-gray-700 rounded-lg hover:border-gold text-gray-400 hover:text-gold transition text-xs font-medium">
+                            Regenerate
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Used for programmatic access via X-API-Key header</p>
+                </div>
+            </div>
+
+            <button onclick="saveAccountSettings()" class="mt-6 px-6 py-2.5 bg-gold text-black font-semibold text-sm rounded-lg hover:brightness-110 transition flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">save</span>
+                Save Account Settings
+            </button>
+        </div>
+    </main>
+
+    <script>
+        let telegramEnabled = false;
+
+        // Toast notification
+        function showToast(message, success = true) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `fixed top-20 right-6 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-300 z-50 ${success ? 'bg-green-900/80 text-green-300 border border-green-700' : 'bg-red-900/80 text-red-300 border border-red-700'}`;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+        }
+
+        // Toggle password visibility
+        function toggleVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility_off';
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility';
+            }
+        }
+
+        // Toggle Telegram alerts
+        function toggleTelegram() {
+            telegramEnabled = !telegramEnabled;
+            const track = document.getElementById('telegram-toggle');
+            if (telegramEnabled) {
+                track.classList.add('active');
+            } else {
+                track.classList.remove('active');
+            }
+        }
+
+        // Regenerate API key
+        function regenerateApiKey() {
+            const key = crypto.randomUUID().replace(/-/g, '');
+            document.getElementById('acc-api-key').value = key;
+            document.getElementById('acc-api-key').type = 'text';
+            document.getElementById('acc-key-eye').textContent = 'visibility_off';
+        }
+
+        // Load settings on page load
+        async function loadSettings() {
+            try {
+                const resp = await fetch('/api/settings');
+                if (!resp.ok) throw new Error('Failed to load settings');
+                const data = await resp.json();
+
+                // Signal settings
+                const confThreshold = data.scoring.confidence_threshold;
+                document.getElementById('conf-threshold').value = confThreshold;
+                document.getElementById('conf-threshold-val').textContent = confThreshold;
+
+                // Populate symbol dropdown
+                const select = document.getElementById('default-symbol');
+                select.innerHTML = '';
+                (data.symbols || ['XAUUSD.m']).forEach(sym => {
+                    const opt = document.createElement('option');
+                    opt.value = sym;
+                    opt.textContent = sym;
+                    if (sym === data.scoring.default_symbol) opt.selected = true;
+                    select.appendChild(opt);
+                });
+
+                // Alert settings
+                telegramEnabled = data.alerts.enabled;
+                const track = document.getElementById('telegram-toggle');
+                if (telegramEnabled) track.classList.add('active');
+                else track.classList.remove('active');
+
+                const alertConf = data.alerts.min_confidence;
+                document.getElementById('alert-conf').value = alertConf;
+                document.getElementById('alert-conf-val').textContent = alertConf;
+
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+                showToast('Failed to load settings', false);
+            }
+        }
+
+        // Save signal settings
+        async function saveSignalSettings() {
+            const payload = {
+                scoring: {
+                    confidence_threshold: parseInt(document.getElementById('conf-threshold').value),
+                    default_symbol: document.getElementById('default-symbol').value,
+                }
+            };
+            try {
+                const resp = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Signal settings saved');
+                } else {
+                    showToast(data.error || 'Failed to save', false);
+                }
+            } catch (e) {
+                showToast('Failed to save signal settings', false);
+            }
+        }
+
+        // Save alert settings
+        async function saveAlertSettings() {
+            const payload = {
+                alerts: {
+                    enabled: telegramEnabled,
+                    min_confidence: parseInt(document.getElementById('alert-conf').value),
+                }
+            };
+
+            // Save alert config to config.yaml
+            try {
+                const resp = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (!data.success) {
+                    showToast(data.error || 'Failed to save alert config', false);
+                    return;
+                }
+            } catch (e) {
+                showToast('Failed to save alert config', false);
+                return;
+            }
+
+            // Save Telegram credentials to .env
+            const tgToken = document.getElementById('tg-bot-token').value;
+            const tgChatId = document.getElementById('tg-chat-id').value;
+            if (tgToken || tgChatId) {
+                try {
+                    const accPayload = {};
+                    if (tgToken) accPayload.telegram_bot_token = tgToken;
+                    if (tgChatId) accPayload.telegram_chat_id = tgChatId;
+                    const resp = await fetch('/api/settings/account', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(accPayload)
+                    });
+                    const data = await resp.json();
+                    if (!data.success) {
+                        showToast(data.error || 'Failed to save Telegram credentials', false);
+                        return;
+                    }
+                } catch (e) {
+                    showToast('Failed to save Telegram credentials', false);
+                    return;
+                }
+            }
+
+            showToast('Alert settings saved');
+        }
+
+        // Save account settings
+        async function saveAccountSettings() {
+            const payload = {};
+            const username = document.getElementById('acc-username').value.trim();
+            const password = document.getElementById('acc-password').value;
+            const apiKey = document.getElementById('acc-api-key').value.trim();
+
+            if (username) payload.username = username;
+            if (password) payload.password = password;
+            if (apiKey) payload.api_key = apiKey;
+
+            if (Object.keys(payload).length === 0) {
+                showToast('No changes to save', false);
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/settings/account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Account settings saved');
+                    document.getElementById('acc-password').value = '';
+                } else {
+                    showToast(data.error || 'Failed to save', false);
+                }
+            } catch (e) {
+                showToast('Failed to save account settings', false);
+            }
+        }
+
+        // Initialize on page load
+        loadSettings();
+    </script>
+</body>
+</html>

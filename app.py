@@ -1145,6 +1145,108 @@ def promote_model():
 
 
 # ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+@app.route("/settings")
+@login_required
+def settings_page():
+    return render_template("settings.html")
+
+
+@app.route("/api/settings", methods=["GET"])
+@login_required
+def get_settings():
+    """Return current settings."""
+    return jsonify({
+        "scoring": {
+            "confidence_threshold": CONFIG.get("scoring", {}).get("confidence_threshold", 80),
+            "default_symbol": CONFIG.get("scoring", {}).get("default_symbol", "XAUUSD.m"),
+            "timeframe": CONFIG.get("scoring", {}).get("timeframe", "M30"),
+            "bars_count": CONFIG.get("scoring", {}).get("bars_count", 200),
+        },
+        "alerts": {
+            "enabled": CONFIG.get("alerts", {}).get("enabled", False),
+            "min_confidence": CONFIG.get("alerts", {}).get("min_confidence", 90),
+        },
+        "symbols": CONFIG.get("symbols", ["XAUUSD.m"]),
+        "server": {
+            "host": CONFIG.get("server", {}).get("host", "0.0.0.0"),
+            "port": CONFIG.get("server", {}).get("port", 5000),
+        },
+    })
+
+
+@app.route("/api/settings", methods=["POST"])
+@login_required
+def save_settings():
+    """Save signal and alert settings to config.yaml and update CONFIG in memory."""
+    data = request.get_json()
+
+    # Update in-memory CONFIG
+    if "scoring" in data:
+        for key, val in data["scoring"].items():
+            CONFIG.setdefault("scoring", {})[key] = val
+    if "alerts" in data:
+        for key, val in data["alerts"].items():
+            CONFIG.setdefault("alerts", {})[key] = val
+
+    # Write to config.yaml
+    try:
+        config_file = os.path.join(os.path.dirname(__file__), "config.yaml")
+        with open(config_file, "w") as f:
+            yaml.dump(CONFIG, f, default_flow_style=False, sort_keys=False)
+        return jsonify({"success": True, "message": "Settings saved"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/settings/account", methods=["POST"])
+@login_required
+def save_account_settings():
+    """Save account settings to .env and update environment."""
+    data = request.get_json()
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+
+    # Read current .env
+    env_lines = {}
+    try:
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if "=" in line and not line.startswith("#"):
+                    key, val = line.split("=", 1)
+                    env_lines[key.strip()] = val.strip()
+    except FileNotFoundError:
+        pass
+
+    # Update values
+    if data.get("username"):
+        env_lines["DASHBOARD_USER"] = data["username"]
+        os.environ["DASHBOARD_USER"] = data["username"]
+    if data.get("password"):
+        env_lines["DASHBOARD_PASS"] = data["password"]
+        os.environ["DASHBOARD_PASS"] = data["password"]
+    if data.get("api_key"):
+        env_lines["DASHBOARD_API_KEY"] = data["api_key"]
+        os.environ["DASHBOARD_API_KEY"] = data["api_key"]
+    if "telegram_bot_token" in data:
+        env_lines["TELEGRAM_BOT_TOKEN"] = data["telegram_bot_token"]
+        os.environ["TELEGRAM_BOT_TOKEN"] = data["telegram_bot_token"]
+    if "telegram_chat_id" in data:
+        env_lines["TELEGRAM_CHAT_ID"] = data["telegram_chat_id"]
+        os.environ["TELEGRAM_CHAT_ID"] = data["telegram_chat_id"]
+
+    # Write back to .env
+    try:
+        with open(env_path, "w") as f:
+            for key, val in env_lines.items():
+                f.write(f"{key}={val}\n")
+        return jsonify({"success": True, "message": "Account settings saved"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 # Background WebSocket signal checker
 # ---------------------------------------------------------------------------
 def background_signal_checker():
