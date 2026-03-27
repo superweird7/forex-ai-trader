@@ -15,6 +15,7 @@ import yaml
 from dotenv import load_dotenv
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+from flask_socketio import SocketIO, emit
 
 # Load environment and config
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -33,6 +34,7 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-fallback-key")
+socketio = SocketIO(app, cors_allowed_origins="*")
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.jinja_env.auto_reload = True
@@ -730,6 +732,37 @@ def get_status():
 
 
 # ---------------------------------------------------------------------------
+# Background WebSocket signal checker
+# ---------------------------------------------------------------------------
+def background_signal_checker():
+    """Check for new M30 bars and push updates via WebSocket."""
+    global _last_saved_bar_time
+    while True:
+        try:
+            scorer = get_scorer()
+            if scorer:
+                symbol = CONFIG["scoring"]["default_symbol"]
+                df, tick_info, account_info = get_mt5_data(symbol)
+                current_bar = str(df.index[-1])
+                if current_bar != _last_saved_bar_time:
+                    features = scorer.calculate_features(df)
+                    result = scorer.score(features)
+                    payload = {
+                        "signal": result["signal"],
+                        "confidence": round(result["confidence"] * 100, 1),
+                        "score": result["score"],
+                        "price": tick_info["ask"] if tick_info else 0,
+                        "bid": tick_info["bid"] if tick_info else 0,
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "new_bar": True,
+                    }
+                    socketio.emit("signal_update", payload)
+        except Exception as e:
+            print(f"[WARN] Background checker: {e}")
+        socketio.sleep(10)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -757,4 +790,5 @@ if __name__ == "__main__":
     print("  Open http://localhost:5000 in your browser")
     print("=" * 60)
 
-    app.run(host=CONFIG["server"]["host"], port=CONFIG["server"]["port"], debug=False)
+    socketio.start_background_task(background_signal_checker)
+    socketio.run(app, host=CONFIG["server"]["host"], port=CONFIG["server"]["port"], debug=False, allow_unsafe_werkzeug=True)
