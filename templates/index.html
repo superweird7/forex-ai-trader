@@ -274,7 +274,7 @@
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span style="color: #999; font-size: 12px; letter-spacing: 2px;">BUY</span>
-                                    <span id="buy-prob-text" class="text-buy-green" style="font-size: 10px;">0%</span>
+                                    <span id="buy-prob-text" class="text-buy-green" style="font-size: 13px; font-weight: 600;">0%</span>
                                 </div>
                                 <div class="w-full" style="background: #111; height: 2px;">
                                     <div id="buy-prob-bar" class="prob-bar bg-buy-green" style="width:0%; height:2px;"></div>
@@ -283,7 +283,7 @@
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span style="color: #999; font-size: 12px; letter-spacing: 2px;">SELL</span>
-                                    <span id="sell-prob-text" class="text-sell-red" style="font-size: 10px;">0%</span>
+                                    <span id="sell-prob-text" class="text-sell-red" style="font-size: 13px; font-weight: 600;">0%</span>
                                 </div>
                                 <div class="w-full" style="background: #111; height: 2px;">
                                     <div id="sell-prob-bar" class="prob-bar bg-sell-red" style="width:0%; height:2px;"></div>
@@ -292,7 +292,7 @@
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span style="color: #999; font-size: 12px; letter-spacing: 2px;">NO TRADE</span>
-                                    <span id="notrade-prob-text" style="color: #333; font-size: 10px;">0%</span>
+                                    <span id="notrade-prob-text" style="color: #888; font-size: 13px; font-weight: 600;">0%</span>
                                 </div>
                                 <div class="w-full" style="background: #111; height: 2px;">
                                     <div id="notrade-prob-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
@@ -306,7 +306,7 @@
                             <div id="score-dots" class="flex gap-1">
                                 <!-- 10 dots rendered by JS -->
                             </div>
-                            <div id="score-label" class="text-xs mt-1" style="color: #333; font-size: 10px;">-- / 10</div>
+                            <div id="score-label" class="text-xs mt-1" style="color: #888; font-size: 12px;">-- / 10</div>
                         </div>
                     </div>
 
@@ -316,8 +316,8 @@
                             <div class="section-label mb-1">PRICE</div>
                             <div id="price" class="font-headline text-2xl font-bold" style="color: #ccc;">----</div>
                             <div class="flex items-center justify-center gap-2 mt-1">
-                                <span id="bid" style="font-size: 10px; color: #333;">Bid: --</span>
-                                <span id="spread" style="font-size: 10px; color: #333;">Spd: --</span>
+                                <span id="bid" style="font-size: 11px; color: #888;">Bid: --</span>
+                                <span id="spread" style="font-size: 11px; color: #888;">Spd: --</span>
                             </div>
                         </div>
                         <div class="indicator-card text-center">
@@ -392,49 +392,49 @@
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">RSI (14)</div>
                         <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-rsi-label" style="font-size: 9px; color: #333;">--</div>
+                        <div id="ind-rsi-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- Stochastic -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">STOCH %K</div>
                         <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-stoch-label" style="font-size: 9px; color: #333;">--</div>
+                        <div id="ind-stoch-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- ATR -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ATR</div>
                         <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-atr-label" style="font-size: 9px; color: #333;">vs avg: --</div>
+                        <div id="ind-atr-label" style="font-size: 11px; color: #888;">vs avg: --</div>
                     </div>
                     <!-- ADX -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ADX</div>
                         <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-adx-label" style="font-size: 9px; color: #333;">--</div>
+                        <div id="ind-adx-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- BB Position -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">BB POSITION</div>
                         <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-bb-label" style="font-size: 9px; color: #333;">--</div>
+                        <div id="ind-bb-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- EMA Trend -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">EMA TREND</div>
                         <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-ema-label" style="font-size: 9px; color: #333;">--</div>
+                        <div id="ind-ema-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- MACD -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">MACD</div>
                         <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-macd-label" style="font-size: 9px; color: #333;">--</div>
+                        <div id="ind-macd-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- Candle -->
                     <div class="indicator-card">
                         <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">CANDLE</div>
                         <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #999;">--</div>
-                        <div id="ind-candle-label" style="font-size: 9px; color: #333;">Body: --%</div>
+                        <div id="ind-candle-label" style="font-size: 11px; color: #888;">Body: --%</div>
                     </div>
                 </div>
             </div>
@@ -471,7 +471,7 @@
                     <h2 class="section-label" style="color: #00ff41;">// SIGNAL REASONS</h2>
                 </div>
                 <div id="reasons-list" class="space-y-3">
-                    <div class="text-sm" style="color: #333; font-style: italic;">Waiting for signal...</div>
+                    <div class="text-sm" style="color: #888; font-style: italic;">Waiting for signal...</div>
                 </div>
             </div>
 
@@ -509,8 +509,8 @@
                     <!-- NO TRADE count -->
                     <div>
                         <div class="flex justify-between mb-1" style="font-size: 10px;">
-                            <span style="color: #333; letter-spacing: 2px;">NO TRADE</span>
-                            <span id="stat-notrade" style="color: #333; font-weight: 600;">0</span>
+                            <span style="color: #888; letter-spacing: 2px;">NO TRADE</span>
+                            <span id="stat-notrade" style="color: #888; font-weight: 600;">0</span>
                         </div>
                         <div class="w-full" style="background: #111; height: 2px;">
                             <div id="stat-notrade-bar" class="prob-bar" style="background: #333; width:0%; height:2px;"></div>
@@ -532,7 +532,7 @@
                 </div>
                 <table class="w-full history-table">
                     <thead>
-                        <tr style="font-size: 9px; color: #333; letter-spacing: 2px; text-transform: uppercase;">
+                        <tr style="font-size: 11px; color: #888; letter-spacing: 2px; text-transform: uppercase;">
                             <th class="text-left py-2 font-medium">Time</th>
                             <th class="text-left py-2 font-medium">Price</th>
                             <th class="text-left py-2 font-medium">Signal</th>
@@ -541,7 +541,7 @@
                         </tr>
                     </thead>
                     <tbody id="history-body">
-                        <tr><td colspan="5" class="text-center text-sm py-8" style="color: #333; font-style: italic;">No signals yet</td></tr>
+                        <tr><td colspan="5" class="text-center text-sm py-8" style="color: #888; font-style: italic;">No signals yet</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1133,7 +1133,7 @@
         const canvas = document.getElementById('particles-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
-        const COUNT = 120;
+        const COUNT = 200;
 
         function resize() {
             canvas.width = window.innerWidth;
