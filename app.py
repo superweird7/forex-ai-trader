@@ -11,10 +11,18 @@ import traceback
 from datetime import datetime, timedelta
 from threading import Lock
 
+import yaml
+from dotenv import load_dotenv
 from flask import Flask, render_template, jsonify
 
+# Load environment and config
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+_config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+with open(_config_path, "r") as f:
+    CONFIG = yaml.safe_load(f)
+
 # Add project paths
-sys.path.insert(0, "D:/FOREX/python")
+sys.path.insert(0, CONFIG["paths"]["python_dir"])
 
 import numpy as np
 import pandas as pd
@@ -23,6 +31,7 @@ import pandas as pd
 # Globals
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-fallback-key")
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.jinja_env.auto_reload = True
@@ -198,8 +207,8 @@ def get_scorer():
         from gold_signal_scorer import GoldSignalScorer
 
         _scorer = GoldSignalScorer(
-            model_path="D:/FOREX/models/gold_signal_model.json",
-            config_path="D:/FOREX/models/gold_signal_config.json",
+            model_path=CONFIG["paths"]["model_path"],
+            config_path=CONFIG["paths"]["config_path"],
         )
         print(f"[OK] Scorer loaded — {len(_scorer.feature_names)} features")
         return _scorer
@@ -219,7 +228,7 @@ def init_mt5():
 
         if not mt5.initialize():
             # Try with explicit path
-            mt5.initialize("C:\\Program Files\\MetaTrader 5\\terminal64.exe")
+            mt5.initialize(CONFIG["paths"]["mt5_terminal"])
         return mt5.terminal_info() is not None
     except Exception:
         return False
@@ -233,21 +242,22 @@ def get_mt5_data():
     import MetaTrader5 as mt5
 
     if not mt5.initialize():
-        mt5.initialize("C:\\Program Files\\MetaTrader 5\\terminal64.exe")
+        mt5.initialize(CONFIG["paths"]["mt5_terminal"])
 
     info = mt5.terminal_info()
     if info is None:
         raise ConnectionError("MT5 terminal not responding")
 
-    rates = mt5.copy_rates_from_pos("XAUUSD.m", mt5.TIMEFRAME_M30, 0, 200)
+    symbol = CONFIG["scoring"]["default_symbol"]
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 200)
     if rates is None or len(rates) == 0:
-        raise ValueError("No XAUUSD.m M30 data from MT5")
+        raise ValueError(f"No {symbol} M30 data from MT5")
 
     df = pd.DataFrame(rates)
     df["time"] = pd.to_datetime(df["time"], unit="s")
     df.set_index("time", inplace=True)
 
-    tick = mt5.symbol_info_tick("XAUUSD.m")
+    tick = mt5.symbol_info_tick(symbol)
     account = mt5.account_info()
 
     tick_info = None
@@ -336,7 +346,7 @@ def get_signal():
 
     # Load config stats for the sidebar
     try:
-        with open("D:/FOREX/models/gold_signal_config.json", "r") as f:
+        with open(CONFIG["paths"]["config_path"], "r") as f:
             config = json.load(f)
         payload["config"] = {
             "buy_winrate": round(
@@ -633,4 +643,4 @@ if __name__ == "__main__":
     print("  Open http://localhost:5000 in your browser")
     print("=" * 60)
 
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host=CONFIG["server"]["host"], port=CONFIG["server"]["port"], debug=False)
