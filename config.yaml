@@ -1,28 +1,32 @@
 paths:
-  python_dir: "D:/FOREX/python"
-  model_path: "D:/FOREX/models/gold_signal_model.json"
-  config_path: "D:/FOREX/models/gold_signal_config.json"
-  mt5_terminal: "C:/Program Files/MetaTrader 5/terminal64.exe"
-  data_dir: "D:/FOREX/data"
-
+  python_dir: D:/FOREX/python
+  model_path: D:/FOREX/models/gold_signal_model.json
+  config_path: D:/FOREX/models/gold_signal_config.json
+  mt5_terminal: C:/Program Files/MetaTrader 5/terminal64.exe
+  data_dir: D:/FOREX/data
 scoring:
-  default_symbol: "XAUUSD.m"
-  timeframe: "M30"
+  default_symbol: XAUUSD.m
+  timeframe: M30
   bars_count: 200
-  confidence_threshold: 90
-
+  confidence_threshold: 80
 alerts:
-  enabled: false
+  enabled: true
   min_confidence: 90
-
 server:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 5000
-
+trade_manager:
+  atr_period: 14
+  sl_multiplier: 1.5
+  tp_ratio: 2.5
+  high_vol_threshold: 1.5
+  high_vol_duration: 900
+  normal_vol_duration: 1800
+  low_vol_duration: 2700
 symbols:
-  - "XAUUSD.m"
-  - "EURUSD.m"
-  - "GBPUSD.m"
-  - "USDJPY.m"
-  - "BTCUSD.m"
-  - "ETHUSD.m"
+- XAUUSD.m
+- EURUSD.m
+- GBPUSD.m
+- USDJPY.m
+- BTCUSD.m
+- ETHUSD.m
