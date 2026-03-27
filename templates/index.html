@@ -395,6 +395,14 @@
                 </div>
 
                 <!-- Trade alert banner -->
+                <!-- Live Recommendation -->
+                <div id="trade-rec" style="border:1px solid #1a1a1a; padding:10px 16px; margin-bottom:8px; display:none;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div id="trade-rec-icon" style="width:12px; height:12px; background:#00ff41;"></div>
+                        <div id="trade-rec-text" style="font-size:16px; font-weight:700; letter-spacing:2px; color:#00ff41;">HOLD</div>
+                    </div>
+                    <div id="trade-rec-detail" style="font-size:12px; color:#999; margin-top:4px;">Waiting for data...</div>
+                </div>
                 <div id="trade-alert" class="hidden px-4 py-2 text-sm font-bold text-center" style="border: 1px solid #1a1a1a;"></div>
             </div>
 
@@ -1108,6 +1116,30 @@
             pnlEl.style.color = pnl >= 0 ? '#00e479' : '#bd0e2f';
 
             // Timer is handled by startTradeTimer() interval (1s updates)
+
+            // Recommendation
+            const recEl = document.getElementById('trade-rec');
+            const recText = document.getElementById('trade-rec-text');
+            const recDetail = document.getElementById('trade-rec-detail');
+            const recIcon = document.getElementById('trade-rec-icon');
+            if (trade.recommendation) {
+                recEl.style.display = 'block';
+                recText.textContent = trade.recommendation;
+                recDetail.textContent = trade.rec_detail || '';
+                const colors = {
+                    profit: '#00ff41',
+                    good: '#00ff41',
+                    neutral: '#888',
+                    caution: '#ffaa00',
+                    danger: '#ff0040',
+                    expired: '#666',
+                };
+                const c = colors[trade.rec_level] || '#888';
+                recText.style.color = c;
+                recIcon.style.background = c;
+                // Pulse the border on danger
+                recEl.style.borderColor = trade.rec_level === 'danger' ? '#ff0040' : trade.rec_level === 'profit' ? '#00ff41' : '#1a1a1a';
+            }
 
             // Progress bar (position between SL and TP)
             const sl = trade.sl_price || 0;

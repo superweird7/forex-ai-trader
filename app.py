@@ -527,7 +527,7 @@ def check_active_trades(current_ask, current_bid):
 
 
 def get_active_trade():
-    """Get the current active trade if any."""
+    """Get the current active trade if any, with recommendation."""
     conn = get_db()
     trade = conn.execute("SELECT * FROM active_trades WHERE status='active' ORDER BY id DESC LIMIT 1").fetchone()
     conn.close()
@@ -538,6 +538,63 @@ def get_active_trade():
         max_dur = trade_dict["max_duration_sec"] or 1800
         trade_dict["elapsed_sec"] = int(elapsed)
         trade_dict["remaining_sec"] = max(0, int(max_dur - elapsed))
+
+        # Try to get current price for recommendation
+        try:
+            import MetaTrader5 as mt5
+            if mt5.initialize():
+                tick = mt5.symbol_info_tick(trade_dict.get("symbol", "XAUUSD.m"))
+                if tick:
+                    entry = trade_dict["entry_price"]
+                    atr = trade_dict.get("atr_value", 20) or 20
+                    remaining = trade_dict["remaining_sec"]
+
+                    if trade_dict["direction"] == "BUY":
+                        pnl = round(tick.bid - entry, 2)
+                    else:
+                        pnl = round(entry - tick.ask, 2)
+                    trade_dict["current_pnl"] = pnl
+                    trade_dict["current_ask"] = tick.ask
+                    trade_dict["current_bid"] = tick.bid
+
+                    pnl_ratio = pnl / atr if atr > 0 else 0
+
+                    if pnl_ratio >= 1.5:
+                        trade_dict["recommendation"] = "TAKE PROFIT"
+                        trade_dict["rec_detail"] = f"You're up {pnl:+.0f} pts (1.5x ATR). Lock in gains."
+                        trade_dict["rec_level"] = "profit"
+                    elif pnl_ratio >= 0.5:
+                        trade_dict["recommendation"] = "HOLD"
+                        trade_dict["rec_detail"] = f"Up {pnl:+.0f} pts and moving in your favor."
+                        trade_dict["rec_level"] = "good"
+                    elif pnl_ratio >= 0:
+                        trade_dict["recommendation"] = "HOLD"
+                        trade_dict["rec_detail"] = f"Around breakeven ({pnl:+.0f} pts). Wait for move."
+                        trade_dict["rec_level"] = "neutral"
+                    elif pnl_ratio >= -0.5:
+                        trade_dict["recommendation"] = "CAUTION"
+                        trade_dict["rec_detail"] = f"Down {pnl:.0f} pts. Still within normal range."
+                        trade_dict["rec_level"] = "caution"
+                    elif pnl_ratio >= -1.0:
+                        trade_dict["recommendation"] = "CLOSE NOW"
+                        trade_dict["rec_detail"] = f"Down {pnl:.0f} pts (1x ATR). Cut your loss."
+                        trade_dict["rec_level"] = "danger"
+                    else:
+                        trade_dict["recommendation"] = "CLOSE NOW"
+                        trade_dict["rec_detail"] = f"Down {pnl:.0f} pts. Heavy loss — exit immediately."
+                        trade_dict["rec_level"] = "danger"
+
+                    if remaining <= 0:
+                        trade_dict["recommendation"] = "EXPIRED"
+                        trade_dict["rec_detail"] = f"Time limit reached. Close at market ({pnl:+.0f} pts)."
+                        trade_dict["rec_level"] = "expired"
+                    elif remaining < 120 and pnl <= 0:
+                        trade_dict["recommendation"] = "CLOSE SOON"
+                        trade_dict["rec_detail"] = f"Under 2 min left and losing {pnl:.0f} pts. Close soon."
+                        trade_dict["rec_level"] = "caution"
+        except Exception:
+            pass
+
         return trade_dict
     return None
 
@@ -1610,15 +1667,65 @@ def background_signal_checker():
                         socketio.emit("trade_closed", ct)
                         send_trade_telegram(ct, "closed")
 
-                    # Send live trade update to clients
+                    # Send live trade update with recommendation
                     active = get_active_trade()
                     if active:
                         active["current_ask"] = tick_info["ask"]
                         active["current_bid"] = tick_info["bid"]
+                        entry = active["entry_price"]
+                        atr = active.get("atr_value", 20) or 20
+                        elapsed = active.get("elapsed_sec", 0)
+                        max_dur = active.get("max_duration_sec", 1800) or 1800
+                        remaining = active.get("remaining_sec", 0)
+
                         if active["direction"] == "BUY":
-                            active["current_pnl"] = round(tick_info["bid"] - active["entry_price"], 2)
+                            pnl = round(tick_info["bid"] - entry, 2)
                         else:
-                            active["current_pnl"] = round(active["entry_price"] - tick_info["ask"], 2)
+                            pnl = round(entry - tick_info["ask"], 2)
+                        active["current_pnl"] = pnl
+
+                        # Calculate recommendation
+                        pnl_ratio = pnl / atr if atr > 0 else 0  # how many ATRs of profit/loss
+
+                        if pnl_ratio >= 1.5:
+                            rec = "TAKE PROFIT"
+                            rec_detail = f"You're up {pnl:+.0f} pts (1.5x ATR). Lock in gains."
+                            rec_level = "profit"
+                        elif pnl_ratio >= 0.5:
+                            rec = "HOLD"
+                            rec_detail = f"Up {pnl:+.0f} pts and moving in your favor."
+                            rec_level = "good"
+                        elif pnl_ratio >= 0:
+                            rec = "HOLD"
+                            rec_detail = f"Around breakeven ({pnl:+.0f} pts). Wait for move."
+                            rec_level = "neutral"
+                        elif pnl_ratio >= -0.5:
+                            rec = "CAUTION"
+                            rec_detail = f"Down {pnl:.0f} pts. Still within normal range."
+                            rec_level = "caution"
+                        elif pnl_ratio >= -1.0:
+                            rec = "CLOSE NOW"
+                            rec_detail = f"Down {pnl:.0f} pts (1x ATR). Cut your loss."
+                            rec_level = "danger"
+                        else:
+                            rec = "CLOSE NOW"
+                            rec_detail = f"Down {pnl:.0f} pts. Heavy loss — exit immediately."
+                            rec_level = "danger"
+
+                        # Override with timer
+                        if remaining <= 0:
+                            rec = "EXPIRED"
+                            rec_detail = f"Time limit reached. Close at market ({pnl:+.0f} pts)."
+                            rec_level = "expired"
+                        elif remaining < 120 and pnl <= 0:
+                            rec = "CLOSE SOON"
+                            rec_detail = f"Under 2 min left and losing {pnl:.0f} pts. Close soon."
+                            rec_level = "caution"
+
+                        active["recommendation"] = rec
+                        active["rec_detail"] = rec_detail
+                        active["rec_level"] = rec_level
+
                         socketio.emit("trade_update", active)
         except Exception as e:
             print(f"[WARN] Background checker: {e}")
