@@ -23,6 +23,16 @@ _config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
 with open(_config_path, "r") as f:
     CONFIG = yaml.safe_load(f)
 
+CONFIG.setdefault("trade_manager", {
+    "atr_period": 14,
+    "sl_multiplier": 1.5,
+    "tp_ratio": 2.5,
+    "high_vol_threshold": 1.5,
+    "high_vol_duration": 900,
+    "normal_vol_duration": 1800,
+    "low_vol_duration": 2700,
+})
+
 # Add project paths
 sys.path.insert(0, CONFIG["paths"]["python_dir"])
 
@@ -164,6 +174,27 @@ def init_db():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS active_trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            signal_id INTEGER,
+            symbol TEXT,
+            direction TEXT,
+            entry_price REAL,
+            tp_price REAL,
+            sl_price REAL,
+            max_duration_sec INTEGER,
+            atr_value REAL,
+            started_at TEXT,
+            closed_at TEXT,
+            exit_reason TEXT,
+            exit_price REAL,
+            pnl_points REAL,
+            status TEXT DEFAULT 'active',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
     print(f"[OK] Database ready: {DB_PATH}")
@@ -294,6 +325,221 @@ def send_telegram_alert(signal_data):
         )
     except Exception as e:
         print(f"[WARN] Telegram alert failed: {e}")
+
+
+def send_trade_telegram(trade_data, event="opened"):
+    """Send Telegram message for trade events."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return
+    if not CONFIG.get("alerts", {}).get("enabled", False):
+        return
+
+    d = trade_data
+    if event == "opened":
+        icon = "\U0001f7e2" if d["direction"] == "BUY" else "\U0001f534"
+        dur_min = d.get("max_duration_sec", 1800) // 60
+        msg = (
+            f"{icon} TRADE {d['direction']} \u2014 {d.get('symbol', 'XAUUSD.m')}\n"
+            f"\U0001f4b0 Entry: {d['entry_price']}\n"
+            f"\U0001f3af TP: {d['tp_price']} (+{d.get('tp_distance', 0)}pts)\n"
+            f"\U0001f6d1 SL: {d['sl_price']} (-{d.get('sl_distance', 0)}pts)\n"
+            f"\u23f0 Max: {dur_min} min\n"
+            f"\u26a1 ACT NOW"
+        )
+    else:  # closed
+        is_win = d.get("pnl_points", 0) > 0
+        icon = "\u2705" if is_win else "\u274c"
+        reason_map = {"tp_hit": "TARGET HIT", "sl_hit": "STOPPED OUT", "expired": "EXPIRED", "manual": "MANUAL", "new_signal": "NEW SIGNAL", "reversed": "REVERSED"}
+        reason = reason_map.get(d.get("exit_reason", ""), d.get("exit_reason", ""))
+        pnl = d.get("pnl_points", 0)
+        pnl_icon = "\U0001f4c8" if is_win else "\U0001f4c9"
+        msg = (
+            f"{icon} TRADE CLOSED \u2014 {reason}\n"
+            f"\U0001f4b0 Entry: {d.get('entry_price', 0)} \u2192 Exit: {d.get('exit_price', 0)}\n"
+            f"{pnl_icon} PnL: {pnl:+.2f} points\n"
+            f"\u23f1 Duration: {d.get('duration_sec', 0) // 60}min {d.get('duration_sec', 0) % 60}s"
+        )
+
+    try:
+        import requests as req
+        req.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                 json={"chat_id": chat_id, "text": msg}, timeout=5)
+    except Exception as e:
+        print(f"[WARN] Trade Telegram failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Trade Manager
+# ---------------------------------------------------------------------------
+def calculate_trade_levels(direction, entry_price, atr_value, atr_vs_avg):
+    """Calculate TP, SL, and max duration for a trade."""
+    tm = CONFIG.get("trade_manager", {})
+    sl_mult = tm.get("sl_multiplier", 1.5)
+    tp_ratio = tm.get("tp_ratio", 2.5)
+
+    sl_distance = atr_value * sl_mult
+    tp_distance = sl_distance * tp_ratio
+
+    if direction == "BUY":
+        sl_price = round(entry_price - sl_distance, 2)
+        tp_price = round(entry_price + tp_distance, 2)
+    else:  # SELL
+        sl_price = round(entry_price + sl_distance, 2)
+        tp_price = round(entry_price - tp_distance, 2)
+
+    # ATR-based duration
+    high_thresh = tm.get("high_vol_threshold", 1.5)
+    if atr_vs_avg > high_thresh:
+        max_duration = tm.get("high_vol_duration", 900)
+    elif atr_vs_avg < 0.8:
+        max_duration = tm.get("low_vol_duration", 2700)
+    else:
+        max_duration = tm.get("normal_vol_duration", 1800)
+
+    return tp_price, sl_price, sl_distance, tp_distance, max_duration
+
+
+def open_trade(signal_record):
+    """Open a new active trade from a signal."""
+    direction = signal_record["signal"]
+    if direction not in ("BUY", "SELL"):
+        return None
+
+    conf_threshold = CONFIG.get("scoring", {}).get("confidence_threshold", 80)
+    if signal_record.get("confidence", 0) < conf_threshold:
+        return None
+
+    # Close any existing active trades first
+    conn = get_db()
+    conn.execute("UPDATE active_trades SET status='closed', exit_reason='new_signal', closed_at=? WHERE status='active'",
+                 (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
+    conn.commit()
+
+    entry_price = signal_record.get("price", 0) if direction == "BUY" else signal_record.get("bid", 0)
+    atr_value = signal_record.get("atr", 20)
+    atr_vs_avg = signal_record.get("atr_vs_avg", 1.0)
+
+    tp_price, sl_price, sl_dist, tp_dist, max_duration = calculate_trade_levels(
+        direction, entry_price, atr_value, atr_vs_avg
+    )
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("""
+        INSERT INTO active_trades (symbol, direction, entry_price, tp_price, sl_price,
+            max_duration_sec, atr_value, started_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+    """, (
+        signal_record.get("symbol", CONFIG["scoring"]["default_symbol"]),
+        direction, entry_price, tp_price, sl_price, max_duration, atr_value, now
+    ))
+    conn.commit()
+
+    trade_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+
+    trade_data = {
+        "trade_id": trade_id,
+        "direction": direction,
+        "entry_price": entry_price,
+        "tp_price": tp_price,
+        "sl_price": sl_price,
+        "sl_distance": round(sl_dist, 2),
+        "tp_distance": round(tp_dist, 2),
+        "max_duration_sec": max_duration,
+        "atr_value": atr_value,
+        "started_at": now,
+        "status": "active",
+        "symbol": signal_record.get("symbol", CONFIG["scoring"]["default_symbol"]),
+    }
+
+    print(f"[TRADE] Opened {direction} @ {entry_price} | TP={tp_price} SL={sl_price} | {max_duration}s")
+    return trade_data
+
+
+def check_active_trades(current_ask, current_bid):
+    """Check if any active trades hit TP, SL, or expired. Returns list of closed trades."""
+    conn = get_db()
+    trades = conn.execute("SELECT * FROM active_trades WHERE status='active'").fetchall()
+    closed = []
+
+    for trade in trades:
+        trade_dict = dict(trade)
+        trade_id = trade_dict["id"]
+        direction = trade_dict["direction"]
+        entry = trade_dict["entry_price"]
+        tp = trade_dict["tp_price"]
+        sl = trade_dict["sl_price"]
+        started = datetime.strptime(trade_dict["started_at"], "%Y-%m-%d %H:%M:%S")
+        max_dur = trade_dict["max_duration_sec"] or 1800
+
+        current_price = current_bid if direction == "BUY" else current_ask
+        elapsed = (datetime.now() - started).total_seconds()
+
+        exit_reason = None
+        exit_price = current_price
+
+        if direction == "BUY":
+            if current_bid >= tp:
+                exit_reason = "tp_hit"
+                exit_price = tp
+            elif current_bid <= sl:
+                exit_reason = "sl_hit"
+                exit_price = sl
+        else:  # SELL
+            if current_ask <= tp:
+                exit_reason = "tp_hit"
+                exit_price = tp
+            elif current_ask >= sl:
+                exit_reason = "sl_hit"
+                exit_price = sl
+
+        if not exit_reason and elapsed >= max_dur:
+            exit_reason = "expired"
+
+        if exit_reason:
+            if direction == "BUY":
+                pnl = round(exit_price - entry, 2)
+            else:
+                pnl = round(entry - exit_price, 2)
+
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute("""
+                UPDATE active_trades SET status='closed', exit_reason=?, exit_price=?,
+                    pnl_points=?, closed_at=? WHERE id=?
+            """, (exit_reason, exit_price, pnl, now, trade_id))
+            conn.commit()
+
+            closed.append({
+                "trade_id": trade_id,
+                "direction": direction,
+                "entry_price": entry,
+                "exit_price": exit_price,
+                "exit_reason": exit_reason,
+                "pnl_points": pnl,
+                "duration_sec": int(elapsed),
+            })
+            print(f"[TRADE] Closed {direction} | {exit_reason} | PnL={pnl:+.2f}pts")
+
+    conn.close()
+    return closed
+
+
+def get_active_trade():
+    """Get the current active trade if any."""
+    conn = get_db()
+    trade = conn.execute("SELECT * FROM active_trades WHERE status='active' ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    if trade:
+        trade_dict = dict(trade)
+        started = datetime.strptime(trade_dict["started_at"], "%Y-%m-%d %H:%M:%S")
+        elapsed = (datetime.now() - started).total_seconds()
+        max_dur = trade_dict["max_duration_sec"] or 1800
+        trade_dict["elapsed_sec"] = int(elapsed)
+        trade_dict["remaining_sec"] = max(0, int(max_dur - elapsed))
+        return trade_dict
+    return None
 
 
 # Initialize database on import
@@ -1173,6 +1419,7 @@ def get_settings():
             "host": CONFIG.get("server", {}).get("host", "0.0.0.0"),
             "port": CONFIG.get("server", {}).get("port", 5000),
         },
+        "trade_manager": CONFIG.get("trade_manager", {}),
     })
 
 
@@ -1189,6 +1436,9 @@ def save_settings():
     if "alerts" in data:
         for key, val in data["alerts"].items():
             CONFIG.setdefault("alerts", {})[key] = val
+    if "trade_manager" in data:
+        for key, val in data["trade_manager"].items():
+            CONFIG.setdefault("trade_manager", {})[key] = val
 
     # Write to config.yaml
     try:
@@ -1244,6 +1494,47 @@ def save_account_settings():
         return jsonify({"success": True, "message": "Account settings saved"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Trade Manager Routes
+# ---------------------------------------------------------------------------
+@app.route("/api/trade/active")
+@login_required
+def api_active_trade():
+    """Get current active trade."""
+    trade = get_active_trade()
+    return jsonify({"trade": trade})
+
+
+@app.route("/api/trade/close", methods=["POST"])
+@login_required
+def api_close_trade():
+    """Manually close the active trade."""
+    conn = get_db()
+    trade = conn.execute("SELECT * FROM active_trades WHERE status='active' ORDER BY id DESC LIMIT 1").fetchone()
+    if not trade:
+        conn.close()
+        return jsonify({"error": "No active trade"}), 404
+    trade_dict = dict(trade)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE active_trades SET status='closed', exit_reason='manual', closed_at=? WHERE id=?",
+                 (now, trade_dict["id"]))
+    conn.commit()
+    conn.close()
+    socketio.emit("trade_closed", {"trade_id": trade_dict["id"], "exit_reason": "manual"})
+    return jsonify({"success": True, "trade_id": trade_dict["id"]})
+
+
+@app.route("/api/trade/history")
+@login_required
+def api_trade_history():
+    """Get closed trades history."""
+    conn = get_db()
+    limit = request.args.get("limit", 50, type=int)
+    trades = conn.execute("SELECT * FROM active_trades WHERE status='closed' ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return jsonify({"trades": [dict(t) for t in trades]})
 
 
 # ---------------------------------------------------------------------------
@@ -1305,6 +1596,30 @@ def background_signal_checker():
 
                     # Push to WebSocket clients
                     socketio.emit("signal_update", signal_record)
+
+                    # Open trade if signal qualifies
+                    trade_data = open_trade(signal_record)
+                    if trade_data:
+                        socketio.emit("trade_opened", trade_data)
+                        send_trade_telegram(trade_data, "opened")
+
+                # Check active trades every cycle (not just on new bar)
+                if tick_info:
+                    closed_trades = check_active_trades(tick_info["ask"], tick_info["bid"])
+                    for ct in closed_trades:
+                        socketio.emit("trade_closed", ct)
+                        send_trade_telegram(ct, "closed")
+
+                    # Send live trade update to clients
+                    active = get_active_trade()
+                    if active:
+                        active["current_ask"] = tick_info["ask"]
+                        active["current_bid"] = tick_info["bid"]
+                        if active["direction"] == "BUY":
+                            active["current_pnl"] = round(tick_info["bid"] - active["entry_price"], 2)
+                        else:
+                            active["current_pnl"] = round(active["entry_price"] - tick_info["ask"], 2)
+                        socketio.emit("trade_update", active)
         except Exception as e:
             print(f"[WARN] Background checker: {e}")
         socketio.sleep(10)

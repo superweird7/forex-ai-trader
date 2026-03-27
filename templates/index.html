@@ -263,6 +263,53 @@
                 </div>
             </div>
 
+            <!-- ACTIVE TRADE PANEL -->
+            <div id="trade-panel" class="panel p-4 border-l-4 border-gold" style="display:none;">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-gold text-lg">swap_vert</span>
+                        <h3 class="font-headline text-sm font-bold text-gold uppercase tracking-wider">Active Trade</h3>
+                    </div>
+                    <button onclick="closeTrade()" class="text-xs bg-red-900/50 text-red-400 border border-red-700 px-3 py-1 rounded hover:bg-red-900 transition">Close Trade</button>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div class="bg-bg rounded-lg p-3 text-center">
+                        <div class="text-xs text-gray-500 mb-1">Direction</div>
+                        <div id="trade-direction" class="font-headline text-lg font-bold">--</div>
+                    </div>
+                    <div class="bg-bg rounded-lg p-3 text-center">
+                        <div class="text-xs text-gray-500 mb-1">Entry Price</div>
+                        <div id="trade-entry" class="font-headline text-lg font-bold text-white">--</div>
+                    </div>
+                    <div class="bg-bg rounded-lg p-3 text-center">
+                        <div class="text-xs text-gray-500 mb-1">Live P&L</div>
+                        <div id="trade-pnl" class="font-headline text-lg font-bold">--</div>
+                    </div>
+                    <div class="bg-bg rounded-lg p-3 text-center">
+                        <div class="text-xs text-gray-500 mb-1">Time Left</div>
+                        <div id="trade-timer" class="font-headline text-lg font-bold text-yellow-400">--</div>
+                    </div>
+                </div>
+
+                <!-- TP / Entry / SL visual scale -->
+                <div class="bg-bg rounded-lg p-3 mb-3">
+                    <div class="flex justify-between text-xs mb-2">
+                        <span class="text-red-400">SL: <span id="trade-sl">--</span></span>
+                        <span class="text-white">Entry: <span id="trade-entry-line">--</span></span>
+                        <span class="text-green-400">TP: <span id="trade-tp">--</span></span>
+                    </div>
+                    <div class="relative h-4 bg-gray-800 rounded-full overflow-hidden">
+                        <div id="trade-progress-loss" class="absolute left-0 top-0 h-full bg-red-600/50 transition-all" style="width:50%"></div>
+                        <div id="trade-progress-win" class="absolute right-0 top-0 h-full bg-green-600/50 transition-all" style="width:50%"></div>
+                        <div id="trade-price-marker" class="absolute top-0 h-full w-1 bg-white transition-all" style="left:50%"></div>
+                    </div>
+                </div>
+
+                <!-- Trade alert banner -->
+                <div id="trade-alert" class="hidden rounded-lg px-4 py-2 text-sm font-bold text-center"></div>
+            </div>
+
             <!-- TECHNICAL INDICATORS GRID -->
             <div class="panel p-4">
                 <div class="flex items-center gap-2 mb-3">
@@ -833,12 +880,136 @@
             } catch(e) {}
         };
 
+        // ---- Browser Notifications ----
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        function sendNotification(title, body, tag) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body: body, tag: tag, icon: '/static/favicon.ico' });
+            }
+            // Play sound
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = tag === 'trade-close' ? 440 : 880;
+                gain.gain.value = 0.3;
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } catch(e) {}
+        }
+
+        // ---- Trade Panel ----
+        function updateTradePanel(trade) {
+            const panel = document.getElementById('trade-panel');
+            if (!trade) {
+                panel.style.display = 'none';
+                return;
+            }
+            panel.style.display = 'block';
+            const isBuy = trade.direction === 'BUY';
+            const dirEl = document.getElementById('trade-direction');
+            dirEl.textContent = trade.direction;
+            dirEl.style.color = isBuy ? '#00e479' : '#bd0e2f';
+
+            document.getElementById('trade-entry').textContent = trade.entry_price?.toFixed(2) || '--';
+            document.getElementById('trade-entry-line').textContent = trade.entry_price?.toFixed(2) || '--';
+            document.getElementById('trade-tp').textContent = trade.tp_price?.toFixed(2) || '--';
+            document.getElementById('trade-sl').textContent = trade.sl_price?.toFixed(2) || '--';
+
+            // P&L
+            const pnl = trade.current_pnl || 0;
+            const pnlEl = document.getElementById('trade-pnl');
+            pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + ' pts';
+            pnlEl.style.color = pnl >= 0 ? '#00e479' : '#bd0e2f';
+
+            // Timer
+            const remaining = trade.remaining_sec || 0;
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            const timerEl = document.getElementById('trade-timer');
+            timerEl.textContent = remaining > 0 ? `${mins}:${secs.toString().padStart(2,'0')}` : 'EXPIRED';
+            timerEl.style.color = remaining > 60 ? '#facc15' : remaining > 0 ? '#f97316' : '#ef4444';
+
+            // Progress bar (position between SL and TP)
+            const sl = trade.sl_price || 0;
+            const tp = trade.tp_price || 0;
+            const entry = trade.entry_price || 0;
+            const range = Math.abs(tp - sl);
+            if (range > 0) {
+                const currentPrice = isBuy ? (trade.current_bid || entry) : (trade.current_ask || entry);
+                let pct;
+                if (isBuy) {
+                    pct = ((currentPrice - sl) / range) * 100;
+                } else {
+                    pct = ((sl - currentPrice) / (sl - tp)) * 100;
+                }
+                pct = Math.max(0, Math.min(100, pct));
+                document.getElementById('trade-price-marker').style.left = pct + '%';
+                document.getElementById('trade-progress-loss').style.width = Math.min(pct, 50) + '%';
+                document.getElementById('trade-progress-win').style.width = Math.min(100 - pct, 50) + '%';
+            }
+        }
+
+        async function closeTrade() {
+            if (!confirm('Close this trade?')) return;
+            try {
+                await fetch('/api/trade/close', { method: 'POST' });
+                document.getElementById('trade-panel').style.display = 'none';
+            } catch(e) { console.error('Close trade failed:', e); }
+        }
+
+        async function fetchActiveTrade() {
+            try {
+                const resp = await fetch('/api/trade/active');
+                const data = await resp.json();
+                updateTradePanel(data.trade);
+            } catch(e) {}
+        }
+
         // ---- WebSocket connection ----
         const socket = io();
         socket.on('signal_update', function(data) {
             console.log('WebSocket signal:', data.signal, data.confidence);
-            // Trigger a fresh fetch to get full payload
             updateSignal();
+            if (data.confidence >= 80 && (data.signal === 'BUY' || data.signal === 'SELL')) {
+                sendNotification(
+                    `${data.signal} Signal — ${data.confidence}%`,
+                    `Price: ${data.price} | Score: ${data.score}/10`,
+                    'new-signal'
+                );
+            }
+        });
+        socket.on('trade_opened', function(data) {
+            console.log('Trade opened:', data);
+            updateTradePanel(data);
+            sendNotification(
+                `TRADE ${data.direction} @ ${data.entry_price}`,
+                `TP: ${data.tp_price} | SL: ${data.sl_price} | ${Math.floor(data.max_duration_sec/60)}min`,
+                'trade-open'
+            );
+        });
+        socket.on('trade_update', function(data) {
+            updateTradePanel(data);
+        });
+        socket.on('trade_closed', function(data) {
+            document.getElementById('trade-panel').style.display = 'none';
+            const isWin = (data.pnl_points || 0) > 0;
+            const reason = {tp_hit:'TARGET HIT',sl_hit:'STOPPED OUT',expired:'EXPIRED',manual:'MANUAL CLOSE',new_signal:'NEW SIGNAL',reversed:'REVERSED'}[data.exit_reason] || data.exit_reason;
+            sendNotification(
+                `${isWin ? 'WIN' : 'LOSS'} — ${reason}`,
+                `PnL: ${data.pnl_points > 0 ? '+' : ''}${data.pnl_points?.toFixed(2)} pts`,
+                'trade-close'
+            );
+            // Show alert banner briefly
+            const alert = document.getElementById('trade-alert');
+            alert.textContent = `${reason}: ${data.pnl_points > 0 ? '+' : ''}${data.pnl_points?.toFixed(2)} pts`;
+            alert.className = `rounded-lg px-4 py-2 text-sm font-bold text-center ${isWin ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-red-900/50 text-red-400 border border-red-700'}`;
+            document.getElementById('trade-panel').style.display = 'block';
+            setTimeout(() => { document.getElementById('trade-panel').style.display = 'none'; }, 10000);
         });
         socket.on('connect', () => console.log('WebSocket connected'));
         socket.on('disconnect', () => console.log('WebSocket disconnected'));
@@ -846,7 +1017,9 @@
         // ---- Init ----
         updateScoreDots(0);
         updateSignal();
+        fetchActiveTrade();
         setInterval(updateSignal, 30000);
+        setInterval(fetchActiveTrade, 10000);
     </script>
 </body>
 </html>
