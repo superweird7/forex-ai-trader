@@ -837,6 +837,8 @@
 
                     // Price / Account
                     document.getElementById('price').textContent = d.price ? d.price.toFixed(2) : '----';
+                    if (d.price) _lastKnownPrice = d.price;
+                    if (d.bid) _lastKnownBid = d.bid;
                     document.getElementById('bid').textContent = 'Bid: ' + (d.bid ? d.bid.toFixed(2) : '--');
                     document.getElementById('spread').textContent = 'Spd: ' + (d.spread != null ? d.spread.toFixed(0) : '--');
 
@@ -1051,6 +1053,9 @@
         let _activeTrade = null;
         let _tradeTimerInterval = null;
 
+        let _lastKnownPrice = 0; // updated by main signal fetch
+        let _lastKnownBid = 0;
+
         function startTradeTimer() {
             if (_tradeTimerInterval) clearInterval(_tradeTimerInterval);
             _tradeTimerInterval = setInterval(() => {
@@ -1060,12 +1065,28 @@
                 const elapsed = Date.now() - started;
                 const remaining = Math.max(0, Math.floor((maxDur - elapsed) / 1000));
 
+                // Timer
                 const mins = Math.floor(remaining / 60);
                 const secs = remaining % 60;
                 const timerEl = document.getElementById('trade-timer');
                 if (timerEl) {
                     timerEl.textContent = remaining > 0 ? `${mins}:${secs.toString().padStart(2,'0')}` : 'EXPIRED';
                     timerEl.style.color = remaining > 60 ? '#facc15' : remaining > 0 ? '#f97316' : '#ef4444';
+                }
+
+                // Live P&L from latest known price
+                if (_lastKnownBid > 0 && _activeTrade.entry_price) {
+                    let pnl;
+                    if (_activeTrade.direction === 'BUY') {
+                        pnl = _lastKnownBid - _activeTrade.entry_price;
+                    } else {
+                        pnl = _activeTrade.entry_price - _lastKnownPrice;
+                    }
+                    const pnlEl = document.getElementById('trade-pnl');
+                    if (pnlEl) {
+                        pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + ' pts';
+                        pnlEl.style.color = pnl >= 0 ? '#00ff41' : '#ff0040';
+                    }
                 }
             }, 1000);
         }
