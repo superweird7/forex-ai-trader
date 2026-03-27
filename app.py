@@ -132,6 +132,22 @@ def init_db():
         print("[OK] Added model_version column to signals table")
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS signal_outcomes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            signal_id INTEGER,
+            signal_type TEXT,
+            entry_price REAL,
+            price_after_6bars REAL,
+            price_after_12bars REAL,
+            outcome TEXT,
+            pnl_points REAL,
+            model_version TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (signal_id) REFERENCES signals(id)
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS simulations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
@@ -920,6 +936,212 @@ def list_simulations():
     rows = conn.execute("SELECT * FROM simulations ORDER BY id DESC LIMIT 20").fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
+
+
+# ---------------------------------------------------------------------------
+# Admin — Model Management
+# ---------------------------------------------------------------------------
+@app.route("/admin/models")
+@login_required
+def admin_models():
+    return render_template("admin_models.html")
+
+
+@app.route("/api/admin/model-stats")
+@login_required
+def model_stats():
+    """Return current model info and feature importance."""
+    scorer = get_scorer()
+    if not scorer:
+        return jsonify({"error": "No model loaded"}), 500
+
+    # Load config for metrics
+    try:
+        with open(CONFIG["paths"]["config_path"], "r") as f:
+            model_config = json.load(f)
+    except Exception:
+        model_config = {}
+
+    val_metrics = model_config.get("val_metrics", {})
+    return jsonify({
+        "feature_count": len(scorer.feature_names),
+        "feature_names": scorer.feature_names,
+        "feature_importance": model_config.get("feature_importance", {}),
+        "accuracy": round(val_metrics.get("accuracy", 0) * 100, 1),
+        "buy_winrate": round(val_metrics.get("buy_highconf_winrate", 0) * 100, 1),
+        "sell_winrate": round(val_metrics.get("sell_highconf_winrate", 0) * 100, 1),
+        "n_train": model_config.get("n_train_samples", 0),
+        "n_val": model_config.get("n_val_samples", 0),
+        "confidence_threshold": model_config.get("confidence_threshold", 0.6),
+        "model_path": CONFIG["paths"]["model_path"],
+        "training_date": model_config.get("training_date", "Unknown"),
+    })
+
+
+@app.route("/api/admin/models/list")
+@login_required
+def list_models():
+    """List all saved model files."""
+    import glob
+    model_dir = os.path.dirname(CONFIG["paths"]["model_path"])
+    models = glob.glob(os.path.join(model_dir, "gold_signal_model*.json"))
+    result = []
+    for m in sorted(models, reverse=True):
+        stat = os.stat(m)
+        result.append({
+            "path": m,
+            "name": os.path.basename(m),
+            "size_kb": round(stat.st_size / 1024, 1),
+            "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+            "is_active": os.path.abspath(m) == os.path.abspath(CONFIG["paths"]["model_path"]),
+        })
+    return jsonify(result)
+
+
+@app.route("/api/admin/retrain", methods=["POST"])
+@login_required
+def retrain_model():
+    """Retrain XGBoost model on data. Returns new model metrics."""
+    data = request.get_json() or {}
+    date_from = data.get("from", "2024-04-01")
+    date_to = data.get("to", datetime.now().strftime("%Y-%m-%d"))
+
+    try:
+        # Load parquet data
+        import glob as glob_mod
+        data_dir = CONFIG["paths"]["data_dir"]
+        parquet_files = glob_mod.glob(os.path.join(data_dir, "*.parquet"))
+        if not parquet_files:
+            return jsonify({"error": "No parquet data found"}), 404
+
+        df = pd.read_parquet(parquet_files[0])
+        if "time" in df.columns:
+            df["time"] = pd.to_datetime(df["time"])
+            df.set_index("time", inplace=True)
+        df = df.loc[date_from:date_to]
+
+        if len(df) < 500:
+            return jsonify({"error": f"Not enough data: {len(df)} bars (need 500+)"}), 400
+
+        # Import scorer and retrain
+        from gold_signal_scorer import GoldSignalScorer
+        import xgboost as xgb
+        from sklearn.model_selection import train_test_split
+
+        # Calculate features for all bars
+        features_list = []
+        labels = []
+        window = int(CONFIG["scoring"].get("bars_count", 200))
+        atr_mult = 1.5
+
+        for i in range(window, len(df) - 12):
+            window_df = df.iloc[i - window:i]
+            try:
+                loaded_scorer = get_scorer()
+                if loaded_scorer:
+                    feats = loaded_scorer.calculate_features(window_df)
+                    features_list.append(feats)
+
+                    # Label: what happened in next 12 bars
+                    future = df.iloc[i:i + 12]
+                    entry = df.iloc[i]["close"]
+                    atr = feats.get("atr14", 20)
+                    threshold = atr * atr_mult
+
+                    max_up = future["high"].max() - entry
+                    max_down = entry - future["low"].min()
+
+                    if max_up >= threshold:
+                        labels.append(0)  # BUY
+                    elif max_down >= threshold:
+                        labels.append(1)  # SELL
+                    else:
+                        labels.append(2)  # NO_TRADE
+            except Exception:
+                continue
+
+        if len(features_list) < 200:
+            return jsonify({"error": f"Could only compute {len(features_list)} samples"}), 400
+
+        feat_df = pd.DataFrame(features_list)
+        X_train, X_val, y_train, y_val = train_test_split(feat_df, labels, test_size=0.2, shuffle=False)
+
+        model = xgb.XGBClassifier(
+            n_estimators=200, max_depth=6, learning_rate=0.1,
+            objective="multi:softprob", num_class=3, eval_metric="mlogloss",
+            use_label_encoder=False
+        )
+        model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+
+        # Evaluate
+        val_preds = model.predict(X_val)
+        accuracy = sum(p == a for p, a in zip(val_preds, y_val)) / len(y_val)
+
+        # Save new model
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_dir = os.path.dirname(CONFIG["paths"]["model_path"])
+        new_model_path = os.path.join(model_dir, f"gold_signal_model_{timestamp}.json")
+        model.save_model(new_model_path)
+
+        # Save new config
+        new_config = {
+            "training_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_names": list(feat_df.columns),
+            "n_train_samples": len(X_train),
+            "n_val_samples": len(X_val),
+            "val_metrics": {"accuracy": accuracy},
+            "confidence_threshold": 0.6,
+        }
+        new_config_path = os.path.join(model_dir, f"gold_signal_config_{timestamp}.json")
+        with open(new_config_path, "w") as f:
+            json.dump(new_config, f, indent=2)
+
+        return jsonify({
+            "success": True,
+            "model_path": new_model_path,
+            "config_path": new_config_path,
+            "accuracy": round(accuracy * 100, 1),
+            "n_train": len(X_train),
+            "n_val": len(X_val),
+            "n_features": len(feat_df.columns),
+            "timestamp": timestamp,
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/models/promote", methods=["POST"])
+@login_required
+def promote_model():
+    """Switch active model to a different version."""
+    global _scorer, _scorer_error
+    data = request.get_json()
+    model_path = data.get("model_path")
+    if not model_path or not os.path.exists(model_path):
+        return jsonify({"error": "Model file not found"}), 404
+
+    # Update config to point to new model
+    CONFIG["paths"]["model_path"] = model_path
+    # Also update config.yaml on disk
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "config.yaml"), "r") as f:
+            cfg = yaml.safe_load(f)
+        cfg["paths"]["model_path"] = model_path
+        with open(os.path.join(os.path.dirname(__file__), "config.yaml"), "w") as f:
+            yaml.dump(cfg, f, default_flow_style=False)
+    except Exception as e:
+        return jsonify({"error": f"Failed to update config: {e}"}), 500
+
+    # Reload scorer
+    _scorer = None
+    _scorer_error = None
+    scorer = get_scorer()
+    if scorer:
+        return jsonify({"success": True, "model_path": model_path, "features": len(scorer.feature_names)})
+    else:
+        return jsonify({"error": f"Failed to load model: {_scorer_error}"}), 500
 
 
 # ---------------------------------------------------------------------------

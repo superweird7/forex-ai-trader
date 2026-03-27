@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Management - XAUUSD</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#131313',
+                        panel: '#201f1f',
+                        border: 'rgba(77, 71, 50, 0.15)',
+                        gold: '#ffd700',
+                        'gold-dim': '#b8960f',
+                        'buy-green': '#00e479',
+                        'buy-bright': '#34ff8d',
+                        'sell-red': '#bd0e2f',
+                        'neutral-gray': '#6b7280',
+                    },
+                    fontFamily: {
+                        headline: ['Space Grotesk', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background: #131313;
+            font-family: 'Inter', sans-serif;
+            color: #e5e5e5;
+        }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+
+        /* Tab styling */
+        .tab-btn {
+            padding: 0.625rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            color: #9ca3af;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+        .tab-btn:hover {
+            color: #ffd700;
+        }
+        .tab-btn.active {
+            color: #ffd700;
+            border-bottom-color: #ffd700;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Stat card */
+        .stat-card {
+            background: #201f1f;
+            border: 1px solid rgba(77, 71, 50, 0.15);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .stat-card .value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffd700;
+            margin-top: 0.25rem;
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 215, 0, 0.15);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            width: 2rem;
+            height: 2rem;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Table */
+        .model-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .model-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            border-bottom: 1px solid rgba(77, 71, 50, 0.25);
+        }
+        .model-table td {
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid rgba(77, 71, 50, 0.1);
+        }
+        .model-table tr:hover td {
+            background: rgba(255, 215, 0, 0.03);
+        }
+
+        /* Confirm dialog */
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .confirm-box {
+            background: #201f1f;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            max-width: 28rem;
+            width: 90%;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="border-b border-border bg-panel/50 backdrop-blur-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center gap-2">
+                    <span class="text-gold font-headline font-bold text-lg">XAUUSD</span>
+                    <span class="text-neutral-gray text-sm">Signal Scorer</span>
+                </div>
+                <div class="flex items-center gap-6 text-sm">
+                    <a href="/" class="text-neutral-gray hover:text-white transition-colors">Dashboard</a>
+                    <a href="/history" class="text-neutral-gray hover:text-white transition-colors">History</a>
+                    <a href="/simulate" class="text-neutral-gray hover:text-white transition-colors">Simulate</a>
+                    <a href="/admin/models" class="text-gold font-medium">Admin</a>
+                    <a href="/logout" class="text-neutral-gray hover:text-sell-red transition-colors">
+                        <span class="material-symbols-outlined text-base align-middle">logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="font-headline text-2xl font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-gold">psychology</span>
+                Model Management
+            </h1>
+            <p class="text-neutral-gray text-sm mt-1">Inspect, retrain, and swap XGBoost signal models</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 border-b border-border mb-6">
+            <button class="tab-btn active" onclick="switchTab('current')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">info</span>
+                Current Model
+            </button>
+            <button class="tab-btn" onclick="switchTab('retrain')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">model_training</span>
+                Retrain
+            </button>
+            <button class="tab-btn" onclick="switchTab('files')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">folder</span>
+                Model Files
+            </button>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- TAB 1: Current Model                                         -->
+        <!-- ============================================================ -->
+        <div id="tab-current" class="tab-content active">
+            <!-- Stats Grid -->
+            <div id="stats-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                <div class="stat-card">
+                    <div class="label">Features</div>
+                    <div class="value" id="stat-features">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Accuracy</div>
+                    <div class="value" id="stat-accuracy">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">BUY Winrate</div>
+                    <div class="value text-buy-green" id="stat-buy-wr" style="color:#00e479">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">SELL Winrate</div>
+                    <div class="value" id="stat-sell-wr" style="color:#bd0e2f">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Training Date</div>
+                    <div class="value text-base" id="stat-date">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Train / Val</div>
+                    <div class="value text-base" id="stat-samples">--</div>
+                </div>
+            </div>
+
+            <!-- Model Path -->
+            <div class="stat-card mb-6">
+                <div class="label mb-1">Active Model Path</div>
+                <code id="stat-model-path" class="text-sm text-neutral-gray break-all">--</code>
+            </div>
+
+            <!-- Feature Importance Chart -->
+            <div class="stat-card">
+                <div class="label mb-4">Top 15 Feature Importance</div>
+                <div style="height: 420px;">
+                    <canvas id="featureChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- TAB 2: Retrain                                               -->
+        <!-- ============================================================ -->
+        <div id="tab-retrain" class="tab-content">
+            <div class="stat-card max-w-2xl">
+                <h2 class="font-headline text-lg font-semibold text-white mb-4">Retrain XGBoost Model</h2>
+                <p class="text-sm text-neutral-gray mb-6">
+                    Train a new model on historical M30 parquet data. The current active model will NOT be replaced
+                    until you explicitly promote the new model from the Model Files tab.
+                </p>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs text-neutral-gray uppercase tracking-wide mb-1">From Date</label>
+                        <input type="date" id="train-from" value="2024-04-01"
+                               class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-neutral-gray uppercase tracking-wide mb-1">To Date</label>
+                        <input type="date" id="train-to" value="2026-03-27"
+                               class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold">
+                    </div>
+                </div>
+
+                <button id="btn-retrain" onclick="startRetraining()"
+                        class="flex items-center gap-2 px-6 py-2.5 bg-gold text-black font-semibold rounded-lg hover:bg-gold-dim transition-colors">
+                    <span class="material-symbols-outlined text-base">model_training</span>
+                    Start Training
+                </button>
+
+                <!-- Loading state -->
+                <div id="retrain-loading" class="hidden mt-6 flex items-center gap-3">
+                    <div class="spinner"></div>
+                    <span class="text-sm text-neutral-gray">Training model... This may take 1-5 minutes.</span>
+                </div>
+
+                <!-- Results -->
+                <div id="retrain-results" class="hidden mt-6 border-t border-border pt-6">
+                    <h3 class="font-headline font-semibold text-white mb-4">Training Results</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="stat-card">
+                            <div class="label">New Accuracy</div>
+                            <div class="value" id="new-accuracy">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Features</div>
+                            <div class="value" id="new-features">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Train Samples</div>
+                            <div class="value text-base" id="new-train">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Val Samples</div>
+                            <div class="value text-base" id="new-val">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison -->
+                    <div id="accuracy-comparison" class="stat-card">
+                        <div class="label mb-2">Accuracy Comparison</div>
+                        <div class="flex items-center gap-4">
+                            <div>
+                                <span class="text-sm text-neutral-gray">Old:</span>
+                                <span class="font-headline font-bold text-white ml-1" id="cmp-old">--</span>
+                            </div>
+                            <span class="material-symbols-outlined text-gold">arrow_forward</span>
+                            <div>
+                                <span class="text-sm text-neutral-gray">New:</span>
+                                <span class="font-headline font-bold ml-1" id="cmp-new">--</span>
+                            </div>
+                            <span id="cmp-delta" class="text-sm font-medium ml-2"></span>
+                        </div>
+                    </div>
+
+                    <!-- New model path -->
+                    <div class="mt-4">
+                        <span class="text-xs text-neutral-gray uppercase tracking-wide">Saved to:</span>
+                        <code id="new-model-path" class="block text-sm text-neutral-gray mt-1 break-all">--</code>
+                        <p class="text-xs text-neutral-gray mt-2">
+                            Go to the <button onclick="switchTab('files')" class="text-gold hover:underline">Model Files</button>
+                            tab to promote this model.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Error -->
+                <div id="retrain-error" class="hidden mt-6 p-4 bg-sell-red/10 border border-sell-red/30 rounded-lg">
+                    <span class="text-sell-red text-sm" id="retrain-error-msg"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- TAB 3: Model Files                                           -->
+        <!-- ============================================================ -->
+        <div id="tab-files" class="tab-content">
+            <div class="stat-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-headline text-lg font-semibold text-white">Saved Models</h2>
+                    <button onclick="loadModelFiles()" class="text-sm text-gold hover:text-gold-dim transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                        Refresh
+                    </button>
+                </div>
+
+                <div id="models-loading" class="flex items-center justify-center py-8">
+                    <div class="spinner"></div>
+                </div>
+
+                <table class="model-table hidden" id="models-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Size</th>
+                            <th>Modified</th>
+                            <th>Status</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="models-tbody"></tbody>
+                </table>
+
+                <div id="models-empty" class="hidden text-center py-8 text-neutral-gray text-sm">
+                    No model files found.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Dialog (hidden) -->
+    <div id="confirm-dialog" class="confirm-overlay hidden">
+        <div class="confirm-box">
+            <h3 class="font-headline font-semibold text-white mb-2">Promote Model</h3>
+            <p class="text-sm text-neutral-gray mb-1">
+                Are you sure you want to switch the active model to:
+            </p>
+            <code id="confirm-model-name" class="block text-sm text-gold my-3 break-all"></code>
+            <p class="text-xs text-neutral-gray mb-4">
+                This will update config.yaml and reload the scorer immediately.
+            </p>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeConfirm()"
+                        class="px-4 py-2 text-sm text-neutral-gray hover:text-white border border-border rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="confirm-promote-btn" onclick="confirmPromote()"
+                        class="px-4 py-2 text-sm bg-gold text-black font-semibold rounded-lg hover:bg-gold-dim transition-colors">
+                    Promote
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---- Tab switching ----
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            // Highlight matching button
+            const labels = { current: 'Current Model', retrain: 'Retrain', files: 'Model Files' };
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if (b.textContent.trim().includes(labels[name]?.split(' ').pop())) b.classList.add('active');
+            });
+
+            // Lazy-load data for tabs
+            if (name === 'files') loadModelFiles();
+        }
+        // Fix tab switching to use data attributes
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            const text = btn.textContent.trim();
+            if (text.includes('Current')) btn.dataset.tab = 'current';
+            else if (text.includes('Retrain')) btn.dataset.tab = 'retrain';
+            else if (text.includes('Files')) btn.dataset.tab = 'files';
+
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+                if (this.dataset.tab === 'files') loadModelFiles();
+            });
+        });
+
+        // ---- State ----
+        let currentAccuracy = 0;
+        let pendingPromotePath = null;
+        let featureChart = null;
+
+        // ---- Load current model stats ----
+        async function loadModelStats() {
+            try {
+                const resp = await fetch('/api/admin/model-stats');
+                if (!resp.ok) {
+                    document.getElementById('stat-features').textContent = 'ERR';
+                    return;
+                }
+                const d = await resp.json();
+
+                document.getElementById('stat-features').textContent = d.feature_count;
+                document.getElementById('stat-accuracy').textContent = d.accuracy + '%';
+                document.getElementById('stat-buy-wr').textContent = d.buy_winrate + '%';
+                document.getElementById('stat-sell-wr').textContent = d.sell_winrate + '%';
+                document.getElementById('stat-date').textContent = d.training_date || 'Unknown';
+                document.getElementById('stat-samples').textContent = (d.n_train || 0).toLocaleString() + ' / ' + (d.n_val || 0).toLocaleString();
+                document.getElementById('stat-model-path').textContent = d.model_path || '--';
+
+                currentAccuracy = d.accuracy;
+
+                // Feature importance chart
+                renderFeatureChart(d.feature_importance, d.feature_names);
+            } catch (e) {
+                console.error('Failed to load model stats:', e);
+            }
+        }
+
+        function renderFeatureChart(importance, featureNames) {
+            // Sort by importance, take top 15
+            let entries = [];
+            if (importance && Object.keys(importance).length > 0) {
+                entries = Object.entries(importance)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 15)
+                    .reverse();  // reverse so highest is at top in horizontal bar
+            } else if (featureNames && featureNames.length > 0) {
+                // No importance data available, show placeholder
+                entries = featureNames.slice(0, 15).map(n => [n, 0]).reverse();
+            }
+
+            if (entries.length === 0) return;
+
+            const labels = entries.map(e => e[0]);
+            const values = entries.map(e => e[1]);
+
+            const ctx = document.getElementById('featureChart').getContext('2d');
+
+            if (featureChart) featureChart.destroy();
+
+            featureChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Importance',
+                        data: values,
+                        backgroundColor: 'rgba(255, 215, 0, 0.6)',
+                        borderColor: '#ffd700',
+                        borderWidth: 1,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#201f1f',
+                            titleColor: '#ffd700',
+                            bodyColor: '#e5e5e5',
+                            borderColor: 'rgba(77, 71, 50, 0.3)',
+                            borderWidth: 1,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(77, 71, 50, 0.1)' },
+                            ticks: { color: '#9ca3af', font: { size: 11 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#e5e5e5', font: { family: 'Space Grotesk', size: 12 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ---- Retrain ----
+        async function startRetraining() {
+            const fromDate = document.getElementById('train-from').value;
+            const toDate = document.getElementById('train-to').value;
+
+            document.getElementById('btn-retrain').disabled = true;
+            document.getElementById('btn-retrain').classList.add('opacity-50');
+            document.getElementById('retrain-loading').classList.remove('hidden');
+            document.getElementById('retrain-results').classList.add('hidden');
+            document.getElementById('retrain-error').classList.add('hidden');
+
+            try {
+                const resp = await fetch('/api/admin/retrain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from: fromDate, to: toDate }),
+                });
+
+                const d = await resp.json();
+
+                if (!resp.ok || d.error) {
+                    document.getElementById('retrain-error-msg').textContent = d.error || 'Unknown error';
+                    document.getElementById('retrain-error').classList.remove('hidden');
+                    return;
+                }
+
+                // Show results
+                document.getElementById('new-accuracy').textContent = d.accuracy + '%';
+                document.getElementById('new-features').textContent = d.n_features;
+                document.getElementById('new-train').textContent = d.n_train.toLocaleString();
+                document.getElementById('new-val').textContent = d.n_val.toLocaleString();
+                document.getElementById('new-model-path').textContent = d.model_path;
+
+                // Comparison
+                document.getElementById('cmp-old').textContent = currentAccuracy + '%';
+                document.getElementById('cmp-new').textContent = d.accuracy + '%';
+                const delta = d.accuracy - currentAccuracy;
+                const deltaEl = document.getElementById('cmp-delta');
+                if (delta > 0) {
+                    deltaEl.textContent = '+' + delta.toFixed(1) + '%';
+                    deltaEl.className = 'text-sm font-medium ml-2';
+                    deltaEl.style.color = '#00e479';
+                    document.getElementById('cmp-new').style.color = '#00e479';
+                } else if (delta < 0) {
+                    deltaEl.textContent = delta.toFixed(1) + '%';
+                    deltaEl.className = 'text-sm font-medium ml-2';
+                    deltaEl.style.color = '#bd0e2f';
+                    document.getElementById('cmp-new').style.color = '#bd0e2f';
+                } else {
+                    deltaEl.textContent = 'No change';
+                    deltaEl.className = 'text-sm font-medium ml-2 text-neutral-gray';
+                    document.getElementById('cmp-new').style.color = '#ffd700';
+                }
+
+                document.getElementById('retrain-results').classList.remove('hidden');
+
+            } catch (e) {
+                document.getElementById('retrain-error-msg').textContent = 'Network error: ' + e.message;
+                document.getElementById('retrain-error').classList.remove('hidden');
+            } finally {
+                document.getElementById('btn-retrain').disabled = false;
+                document.getElementById('btn-retrain').classList.remove('opacity-50');
+                document.getElementById('retrain-loading').classList.add('hidden');
+            }
+        }
+
+        // ---- Model Files ----
+        async function loadModelFiles() {
+            const loading = document.getElementById('models-loading');
+            const table = document.getElementById('models-table');
+            const empty = document.getElementById('models-empty');
+            const tbody = document.getElementById('models-tbody');
+
+            loading.classList.remove('hidden');
+            table.classList.add('hidden');
+            empty.classList.add('hidden');
+
+            try {
+                const resp = await fetch('/api/admin/models/list');
+                const models = await resp.json();
+
+                if (!models || models.length === 0) {
+                    loading.classList.add('hidden');
+                    empty.classList.remove('hidden');
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                models.forEach(m => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="font-mono text-sm">${escapeHtml(m.name)}</td>
+                        <td class="text-neutral-gray">${m.size_kb} KB</td>
+                        <td class="text-neutral-gray">${m.modified}</td>
+                        <td>
+                            ${m.is_active
+                                ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-buy-green/15 text-buy-green"><span class="w-1.5 h-1.5 rounded-full bg-buy-green inline-block"></span> Active</span>'
+                                : '<span class="text-xs text-neutral-gray">Inactive</span>'}
+                        </td>
+                        <td class="text-right">
+                            ${m.is_active
+                                ? '<span class="text-xs text-neutral-gray">Current</span>'
+                                : `<button onclick="promptPromote('${escapeHtml(m.path).replace(/'/g, "\\'")}', '${escapeHtml(m.name).replace(/'/g, "\\'")}')"
+                                       class="px-3 py-1 text-xs bg-gold/10 text-gold border border-gold/20 rounded-lg hover:bg-gold/20 transition-colors">
+                                       Promote
+                                   </button>`}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                loading.classList.add('hidden');
+                table.classList.remove('hidden');
+
+            } catch (e) {
+                loading.classList.add('hidden');
+                empty.classList.remove('hidden');
+                console.error('Failed to load model files:', e);
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ---- Promote ----
+        function promptPromote(path, name) {
+            pendingPromotePath = path;
+            document.getElementById('confirm-model-name').textContent = name;
+            document.getElementById('confirm-dialog').classList.remove('hidden');
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-dialog').classList.add('hidden');
+            pendingPromotePath = null;
+        }
+
+        async function confirmPromote() {
+            if (!pendingPromotePath) return;
+
+            const btn = document.getElementById('confirm-promote-btn');
+            btn.disabled = true;
+            btn.textContent = 'Promoting...';
+
+            try {
+                const resp = await fetch('/api/admin/models/promote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_path: pendingPromotePath }),
+                });
+
+                const d = await resp.json();
+
+                if (d.success) {
+                    closeConfirm();
+                    // Reload everything
+                    loadModelStats();
+                    loadModelFiles();
+                } else {
+                    alert('Failed to promote model: ' + (d.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Network error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Promote';
+            }
+        }
+
+        // ---- Init ----
+        loadModelStats();
+    </script>
+</body>
+</html>
