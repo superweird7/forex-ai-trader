@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backtest Simulator - XAUUSD</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#131313',
+                        panel: '#201f1f',
+                        border: 'rgba(77, 71, 50, 0.15)',
+                        gold: '#ffd700',
+                        'gold-dim': '#b8960f',
+                        'buy-green': '#00e479',
+                        'buy-bright': '#34ff8d',
+                        'sell-red': '#bd0e2f',
+                        'neutral-gray': '#6b7280',
+                    },
+                    fontFamily: {
+                        headline: ['Space Grotesk', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: #131313;
+            font-family: 'Inter', sans-serif;
+            color: #e5e5e5;
+        }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-body { font-family: 'Inter', sans-serif; }
+
+        .panel {
+            background: #201f1f;
+            border: 1px solid rgba(77, 71, 50, 0.15);
+            border-radius: 12px;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #131313; }
+        ::-webkit-scrollbar-thumb { background: #4d4732; border-radius: 3px; }
+
+        .pulse-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            width: 24px; height: 24px;
+            border: 3px solid rgba(255, 215, 0, 0.2);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .stat-card {
+            background: rgba(19, 19, 19, 0.6);
+            border: 1px solid rgba(77, 71, 50, 0.15);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card.green-border { border-left: 3px solid #00e479; }
+        .stat-card.red-border { border-left: 3px solid #bd0e2f; }
+        .stat-card.gold-border { border-left: 3px solid #ffd700; }
+
+        .sim-table tr { border-bottom: 1px solid rgba(77, 71, 50, 0.1); }
+        .sim-table tr:hover { background: rgba(255, 215, 0, 0.03); }
+
+        .nav-link {
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { color: #e5e5e5; background: rgba(255, 215, 0, 0.05); }
+        .nav-link.active { color: #ffd700; background: rgba(255, 215, 0, 0.1); }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #ffd700, #b8960f);
+            color: #131313;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 32px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3); }
+        .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        input[type="date"], select {
+            background: #131313;
+            border: 1px solid rgba(77, 71, 50, 0.3);
+            color: #e5e5e5;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="date"]:focus, select:focus {
+            border-color: #ffd700;
+        }
+        /* Fix date input icon color for dark theme */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.7);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- ===== HEADER ===== -->
+    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-3 flex items-center justify-between" style="background: rgba(19,19,19,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(77,71,50,0.15);">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-gold text-3xl">monitoring</span>
+            <h1 class="font-headline text-xl font-bold text-gold tracking-wide">XAUUSD SIGNAL DASHBOARD</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/" class="nav-link">Dashboard</a>
+            <a href="/history" class="nav-link">History</a>
+            <a href="/simulate" class="nav-link active">Simulate</a>
+            <a href="/logout" class="nav-link" style="color: #bd0e2f;">Logout</a>
+        </div>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="pt-20 px-6 pb-8 max-w-6xl mx-auto">
+
+        <!-- PAGE TITLE -->
+        <div class="mb-6">
+            <h2 class="font-headline text-2xl font-bold text-white flex items-center gap-3">
+                <span class="material-symbols-outlined text-gold text-3xl">science</span>
+                Backtest Simulator
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">Run the XGBoost signal scorer on historical OHLCV data bar-by-bar</p>
+        </div>
+
+        <!-- CONFIG FORM -->
+        <div class="panel p-6 mb-6">
+            <h3 class="font-headline text-sm font-semibold text-gold-dim uppercase tracking-wider mb-4">Configuration</h3>
+            <div class="flex flex-wrap items-end gap-5">
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs text-gray-500 uppercase tracking-wider">Symbol</label>
+                    <select id="sim-symbol">
+                        <option value="XAUUSD.m">Loading...</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs text-gray-500 uppercase tracking-wider">Date From</label>
+                    <input type="date" id="sim-from" value="2024-04-01">
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs text-gray-500 uppercase tracking-wider">Date To</label>
+                    <input type="date" id="sim-to" value="2026-03-27">
+                </div>
+                <button id="btn-run" class="btn-gold flex items-center gap-2" onclick="runSimulation()">
+                    <span class="material-symbols-outlined text-lg">play_arrow</span>
+                    Run Simulation
+                </button>
+            </div>
+
+            <!-- Progress -->
+            <div id="progress-area" class="hidden mt-5 flex items-center gap-3">
+                <div class="spinner"></div>
+                <span class="text-sm text-gray-400" id="progress-text">Processing historical bars... This may take a few minutes.</span>
+            </div>
+        </div>
+
+        <!-- ERROR -->
+        <div id="error-area" class="hidden panel p-5 mb-6" style="border-left: 3px solid #bd0e2f;">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-sell-red">error</span>
+                <span class="text-sell-red font-medium" id="error-text"></span>
+            </div>
+        </div>
+
+        <!-- RESULTS (hidden until sim completes) -->
+        <div id="results-area" class="hidden">
+
+            <!-- SUMMARY CARDS -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="stat-card gold-border">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Signals</div>
+                    <div class="font-headline text-2xl font-bold text-white" id="res-total">--</div>
+                </div>
+                <div class="stat-card green-border">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">BUY Signals</div>
+                    <div class="font-headline text-2xl font-bold text-buy-green" id="res-buys">--</div>
+                </div>
+                <div class="stat-card red-border">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">SELL Signals</div>
+                    <div class="font-headline text-2xl font-bold text-sell-red" id="res-sells">--</div>
+                </div>
+                <div class="stat-card green-border">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Profitable</div>
+                    <div class="font-headline text-2xl font-bold" id="res-profit-pct">--</div>
+                </div>
+                <div class="stat-card gold-border">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Avg PnL</div>
+                    <div class="font-headline text-2xl font-bold" id="res-avg-pnl">--</div>
+                </div>
+            </div>
+
+            <!-- SIGNAL TABLE -->
+            <div class="panel p-6 mb-6">
+                <h3 class="font-headline text-sm font-semibold text-gold-dim uppercase tracking-wider mb-4">
+                    Signal Details <span class="text-gray-500 font-normal lowercase">(last 100)</span>
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm sim-table">
+                        <thead>
+                            <tr class="text-xs text-gray-500 uppercase tracking-wider">
+                                <th class="text-left py-3 px-3">Time</th>
+                                <th class="text-center py-3 px-3">Signal</th>
+                                <th class="text-center py-3 px-3">Confidence</th>
+                                <th class="text-right py-3 px-3">Price</th>
+                                <th class="text-right py-3 px-3">PnL</th>
+                                <th class="text-center py-3 px-3">Outcome</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signal-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAST SIMULATIONS -->
+        <div class="panel p-6">
+            <h3 class="font-headline text-sm font-semibold text-gold-dim uppercase tracking-wider mb-4">Past Simulations</h3>
+            <div id="past-sims-empty" class="text-gray-600 text-sm py-4 text-center">No simulations yet</div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm sim-table" id="past-sims-table" style="display:none;">
+                    <thead>
+                        <tr class="text-xs text-gray-500 uppercase tracking-wider">
+                            <th class="text-left py-3 px-3">Date</th>
+                            <th class="text-left py-3 px-3">Symbol</th>
+                            <th class="text-left py-3 px-3">Period</th>
+                            <th class="text-right py-3 px-3">Signals</th>
+                            <th class="text-right py-3 px-3">BUY</th>
+                            <th class="text-right py-3 px-3">SELL</th>
+                            <th class="text-right py-3 px-3">Profitable %</th>
+                            <th class="text-right py-3 px-3">Avg PnL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="past-sims-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ---------------------------------------------------------------
+        // Load symbols dropdown
+        // ---------------------------------------------------------------
+        async function loadSymbols() {
+            try {
+                const res = await fetch("/api/symbols");
+                const symbols = await res.json();
+                const sel = document.getElementById("sim-symbol");
+                sel.innerHTML = "";
+                symbols.forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = s;
+                    opt.textContent = s;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Failed to load symbols", e);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Load past simulations
+        // ---------------------------------------------------------------
+        async function loadPastSimulations() {
+            try {
+                const res = await fetch("/api/simulations");
+                const sims = await res.json();
+                const tbody = document.getElementById("past-sims-tbody");
+                const table = document.getElementById("past-sims-table");
+                const empty = document.getElementById("past-sims-empty");
+
+                if (sims.length === 0) {
+                    table.style.display = "none";
+                    empty.style.display = "block";
+                    return;
+                }
+
+                table.style.display = "table";
+                empty.style.display = "none";
+                tbody.innerHTML = "";
+
+                sims.forEach(sim => {
+                    const profColor = sim.profitable_pct >= 50 ? "text-buy-green" : "text-sell-red";
+                    const pnlColor = sim.avg_return >= 0 ? "text-buy-green" : "text-sell-red";
+                    const created = sim.created_at ? sim.created_at.split(" ")[0] : "--";
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td class="py-3 px-3 text-gray-400">${created}</td>
+                        <td class="py-3 px-3 text-white font-medium">${sim.symbol || "--"}</td>
+                        <td class="py-3 px-3 text-gray-400">${sim.date_from || ""} ~ ${sim.date_to || ""}</td>
+                        <td class="py-3 px-3 text-right text-white">${sim.total_signals || 0}</td>
+                        <td class="py-3 px-3 text-right text-buy-green">${sim.buy_count || 0}</td>
+                        <td class="py-3 px-3 text-right text-sell-red">${sim.sell_count || 0}</td>
+                        <td class="py-3 px-3 text-right ${profColor} font-semibold">${(sim.profitable_pct || 0).toFixed(1)}%</td>
+                        <td class="py-3 px-3 text-right ${pnlColor} font-semibold">${(sim.avg_return || 0).toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error("Failed to load past simulations", e);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Run simulation
+        // ---------------------------------------------------------------
+        async function runSimulation() {
+            const symbol = document.getElementById("sim-symbol").value;
+            const dateFrom = document.getElementById("sim-from").value;
+            const dateTo = document.getElementById("sim-to").value;
+            const btn = document.getElementById("btn-run");
+
+            // Show progress, hide results/error
+            btn.disabled = true;
+            document.getElementById("progress-area").classList.remove("hidden");
+            document.getElementById("results-area").classList.add("hidden");
+            document.getElementById("error-area").classList.add("hidden");
+
+            try {
+                const res = await fetch("/api/simulate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ symbol, from: dateFrom, to: dateTo }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.error) {
+                    document.getElementById("error-text").textContent = data.error || "Simulation failed";
+                    document.getElementById("error-area").classList.remove("hidden");
+                    return;
+                }
+
+                // Render summary
+                const s = data.summary;
+                document.getElementById("res-total").textContent = s.total_signals.toLocaleString();
+                document.getElementById("res-buys").textContent = s.buy_count.toLocaleString();
+                document.getElementById("res-sells").textContent = s.sell_count.toLocaleString();
+
+                const profEl = document.getElementById("res-profit-pct");
+                profEl.textContent = s.profitable_pct.toFixed(1) + "%";
+                profEl.className = "font-headline text-2xl font-bold " + (s.profitable_pct >= 50 ? "text-buy-green" : "text-sell-red");
+
+                const pnlEl = document.getElementById("res-avg-pnl");
+                pnlEl.textContent = (s.avg_pnl >= 0 ? "+" : "") + s.avg_pnl.toFixed(2);
+                pnlEl.className = "font-headline text-2xl font-bold " + (s.avg_pnl >= 0 ? "text-buy-green" : "text-sell-red");
+
+                // Render signal table
+                const tbody = document.getElementById("signal-tbody");
+                tbody.innerHTML = "";
+                (data.signals || []).forEach(sig => {
+                    const sigColor = sig.signal === "BUY" ? "text-buy-green" : sig.signal === "SELL" ? "text-sell-red" : "text-gray-500";
+                    const pnlSigColor = sig.pnl >= 0 ? "text-buy-green" : "text-sell-red";
+                    const outcomeIcon = sig.signal === "NO_TRADE" ? "--"
+                        : sig.profitable
+                            ? '<span class="material-symbols-outlined text-buy-green text-lg">check_circle</span>'
+                            : '<span class="material-symbols-outlined text-sell-red text-lg">cancel</span>';
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-3 text-gray-400 text-xs">${sig.time}</td>
+                        <td class="py-2.5 px-3 text-center">
+                            <span class="${sigColor} font-semibold text-xs uppercase">${sig.signal}</span>
+                        </td>
+                        <td class="py-2.5 px-3 text-center text-white">${sig.confidence}%</td>
+                        <td class="py-2.5 px-3 text-right text-white tabular-nums">${sig.price.toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-right ${pnlSigColor} tabular-nums font-medium">${sig.signal === "NO_TRADE" ? "--" : (sig.pnl >= 0 ? "+" : "") + sig.pnl.toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-center">${outcomeIcon}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById("results-area").classList.remove("hidden");
+
+                // Refresh past simulations
+                loadPastSimulations();
+
+            } catch (e) {
+                document.getElementById("error-text").textContent = "Request failed: " + e.message;
+                document.getElementById("error-area").classList.remove("hidden");
+            } finally {
+                btn.disabled = false;
+                document.getElementById("progress-area").classList.add("hidden");
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Init
+        // ---------------------------------------------------------------
+        loadSymbols();
+        loadPastSimulations();
+    </script>
+</body>
+</html>

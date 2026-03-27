@@ -131,6 +131,23 @@ def init_db():
         conn.execute("ALTER TABLE signals ADD COLUMN model_version TEXT DEFAULT 'v1'")
         print("[OK] Added model_version column to signals table")
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS simulations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            symbol TEXT,
+            date_from TEXT,
+            date_to TEXT,
+            total_signals INTEGER,
+            buy_count INTEGER,
+            sell_count INTEGER,
+            profitable_pct REAL,
+            avg_return REAL,
+            results_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
     print(f"[OK] Database ready: {DB_PATH}")
@@ -394,6 +411,12 @@ def logout():
 @login_required
 def index():
     return render_template("index.html")
+
+
+@app.route("/history")
+@login_required
+def history_page():
+    return render_template("history.html")
 
 
 @app.route("/api/signal")
@@ -687,7 +710,51 @@ def api_signals():
                              date_from=date_from, date_to=date_to,
                              symbol_filter=symbol_filter)
     stats = db_get_stats()
-    return jsonify({"signals": signals, "stats": stats})
+
+    # Filtered counts for pagination and stats bar
+    conn = get_db()
+    base_where = "WHERE 1=1"
+    base_params = []
+    if symbol_filter:
+        base_where += " AND symbol = ?"
+        base_params.append(symbol_filter)
+    if date_from:
+        base_where += " AND time >= ?"
+        base_params.append(date_from)
+    if date_to:
+        base_where += " AND time <= ?"
+        base_params.append(date_to)
+
+    # Per-type counts (ignoring signal_filter so we always show all 3)
+    filtered_buys = conn.execute(
+        f"SELECT COUNT(*) FROM signals {base_where} AND signal='BUY'", base_params
+    ).fetchone()[0]
+    filtered_sells = conn.execute(
+        f"SELECT COUNT(*) FROM signals {base_where} AND signal='SELL'", base_params
+    ).fetchone()[0]
+    filtered_notrade = conn.execute(
+        f"SELECT COUNT(*) FROM signals {base_where} AND signal='NO_TRADE'", base_params
+    ).fetchone()[0]
+
+    # Total matching current filters (including signal_filter) for pagination
+    pag_where = base_where
+    pag_params = list(base_params)
+    if signal_filter:
+        pag_where += " AND signal = ?"
+        pag_params.append(signal_filter)
+    filtered_total = conn.execute(
+        f"SELECT COUNT(*) FROM signals {pag_where}", pag_params
+    ).fetchone()[0]
+    conn.close()
+
+    return jsonify({
+        "signals": signals,
+        "stats": stats,
+        "filtered_total": filtered_total,
+        "filtered_buys": filtered_buys,
+        "filtered_sells": filtered_sells,
+        "filtered_notrade": filtered_notrade,
+    })
 
 
 @app.route("/api/signals/count")
@@ -729,6 +796,130 @@ def get_status():
             "uptime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Backtest Simulator
+# ---------------------------------------------------------------------------
+@app.route("/simulate")
+@login_required
+def simulate_page():
+    return render_template("simulate.html")
+
+
+@app.route("/api/simulate", methods=["POST"])
+@login_required
+def run_simulation():
+    """Run XGBoost scorer on historical data bar-by-bar."""
+    import glob as glob_mod
+
+    data = request.get_json()
+    symbol = data.get("symbol", CONFIG["scoring"]["default_symbol"])
+    date_from = data.get("from", "2024-04-01")
+    date_to = data.get("to", "2026-03-27")
+
+    scorer = get_scorer()
+    if not scorer:
+        return jsonify({"error": "Model not loaded"}), 500
+
+    # Try to load parquet data
+    data_dir = CONFIG["paths"]["data_dir"]
+    try:
+        parquet_files = glob_mod.glob(os.path.join(data_dir, "*.parquet"))
+        if not parquet_files:
+            return jsonify({"error": f"No parquet files found in {data_dir}"}), 404
+
+        # Load and filter by date
+        df = pd.read_parquet(parquet_files[0])
+        if "time" in df.columns:
+            df["time"] = pd.to_datetime(df["time"])
+            df.set_index("time", inplace=True)
+        df = df.loc[date_from:date_to]
+
+        if len(df) < 100:
+            return jsonify({"error": f"Not enough data: {len(df)} bars (need 100+)"}), 400
+
+        # Score bar-by-bar (sliding window)
+        signals = []
+        window = int(CONFIG["scoring"].get("bars_count", 200))
+        for i in range(window, len(df)):
+            window_df = df.iloc[i - window:i]
+            try:
+                features = scorer.calculate_features(window_df)
+                result = scorer.score(features)
+                entry_price = df.iloc[i]["close"]
+
+                # Check if profitable: price moved in signal direction within 12 bars
+                future_bars = df.iloc[i:i + 12]
+                if len(future_bars) > 0:
+                    if result["signal"] == "BUY":
+                        max_price = future_bars["high"].max()
+                        pnl = max_price - entry_price
+                    elif result["signal"] == "SELL":
+                        min_price = future_bars["low"].min()
+                        pnl = entry_price - min_price
+                    else:
+                        pnl = 0
+                else:
+                    pnl = 0
+
+                signals.append({
+                    "time": str(df.index[i]),
+                    "signal": result["signal"],
+                    "confidence": round(result["confidence"] * 100, 1),
+                    "price": round(entry_price, 2),
+                    "pnl": round(pnl, 2),
+                    "profitable": pnl > 0,
+                })
+            except Exception:
+                continue
+
+        # Calculate summary
+        buy_signals = [s for s in signals if s["signal"] == "BUY"]
+        sell_signals = [s for s in signals if s["signal"] == "SELL"]
+        profitable = [s for s in signals if s["profitable"] and s["signal"] != "NO_TRADE"]
+        total_trades = len(buy_signals) + len(sell_signals)
+
+        summary = {
+            "total_signals": len(signals),
+            "buy_count": len(buy_signals),
+            "sell_count": len(sell_signals),
+            "no_trade_count": len(signals) - total_trades,
+            "profitable_pct": round(len(profitable) / total_trades * 100, 1) if total_trades > 0 else 0,
+            "avg_pnl": round(sum(s["pnl"] for s in signals if s["signal"] != "NO_TRADE") / total_trades, 2) if total_trades > 0 else 0,
+        }
+
+        # Save to DB
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO simulations (name, symbol, date_from, date_to, total_signals,
+                buy_count, sell_count, profitable_pct, avg_return, results_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            f"{symbol} {date_from} to {date_to}",
+            symbol, date_from, date_to,
+            summary["total_signals"], summary["buy_count"], summary["sell_count"],
+            summary["profitable_pct"], summary["avg_pnl"],
+            json.dumps(signals[-100:])
+        ))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"summary": summary, "signals": signals[-100:], "total_processed": len(df) - window})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/simulations")
+@login_required
+def list_simulations():
+    """List past simulation runs."""
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM simulations ORDER BY id DESC LIMIT 20").fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
 
 
 # ---------------------------------------------------------------------------
