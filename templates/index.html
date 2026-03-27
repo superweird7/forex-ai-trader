@@ -227,6 +227,8 @@
                 <div class="pulse-dot" style="background: #00ff41;"></div>
                 <span class="text-gray-500 uppercase">MDL:ACTIVE</span>
             </div>
+            <!-- Sound test -->
+            <button onclick="playSound('signal')" style="color:#555; border:1px solid #333; padding:1px 6px; font-size:9px; cursor:pointer; font-family:'JetBrains Mono',monospace;" title="Test sound">SND</button>
             <!-- Clock -->
             <span id="clock" class="font-headline tabular-nums" style="color: #999;">--:--:--</span>
         </div>
@@ -984,16 +986,23 @@
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
-        // Persistent AudioContext (created on first user click)
+        // Persistent AudioContext
         let _audioCtx = null;
-        document.addEventListener('click', () => {
-            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }, { once: false });
+        function ensureAudio() {
+            if (!_audioCtx) {
+                try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { console.error('AudioContext failed:', e); }
+            }
+            if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+            return _audioCtx;
+        }
+        // Init on any user interaction
+        ['click','keydown','touchstart'].forEach(evt => {
+            document.addEventListener(evt, ensureAudio, { once: false });
+        });
 
         function playSound(type) {
-            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const ctx = _audioCtx;
-            if (ctx.state === 'suspended') ctx.resume();
+            const ctx = ensureAudio();
+            if (!ctx) { console.warn('No AudioContext'); return; }
 
             const gain = ctx.createGain();
             gain.connect(ctx.destination);
