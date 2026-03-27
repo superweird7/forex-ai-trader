@@ -161,7 +161,7 @@
         .section-label {
             font-size: 12px;
             letter-spacing: 3px;
-            color: #999;
+            color: #00ff41;
             text-transform: uppercase;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
@@ -267,7 +267,7 @@
                             <text x="90" y="80" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="36" font-weight="700">
                                 <tspan id="gauge-value">--</tspan>
                             </text>
-                            <text x="90" y="100" text-anchor="middle" fill="#444" font-family="JetBrains Mono" font-size="9" letter-spacing="3">
+                            <text x="90" y="100" text-anchor="middle" fill="#999" font-family="JetBrains Mono" font-size="10" letter-spacing="3">
                                 CONFIDENCE
                             </text>
                         </svg>
@@ -279,7 +279,7 @@
                         <div class="mb-4">
                             <div class="section-label mb-1">CURRENT SIGNAL</div>
                             <div style="display:flex; align-items:center; gap:12px;">
-                                <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #999;">---</div>
+                                <div id="signal-text" class="font-headline text-5xl font-bold" style="color: #ddd;">---</div>
                                 <div id="signal-badge" style="display:none; padding:2px 8px; font-size:10px; letter-spacing:2px; border:1px solid #00ff41; color:#00ff41; animation: flash 1s ease-in-out 3;">NEW</div>
                             </div>
                             <div id="signal-age" style="font-size:11px; color:#555; margin-top:4px;">--</div>
@@ -330,7 +330,7 @@
                     <div class="flex flex-col gap-3" style="min-width: 160px;">
                         <div class="indicator-card text-center">
                             <div class="section-label mb-1">PRICE</div>
-                            <div id="price" class="font-headline text-2xl font-bold" style="color: #ccc;">----</div>
+                            <div id="price" class="font-headline text-2xl font-bold" style="color: #fff;">----</div>
                             <div class="flex items-center justify-center gap-2 mt-1">
                                 <span id="bid" style="font-size: 11px; color: #888;">Bid: --</span>
                                 <span id="spread" style="font-size: 11px; color: #888;">Spd: --</span>
@@ -346,7 +346,7 @@
                         </div>
                         <div class="indicator-card text-center">
                             <div class="section-label mb-1">EQUITY</div>
-                            <div id="equity" class="font-headline text-lg font-bold" style="color: #999;">$--</div>
+                            <div id="equity" class="font-headline text-lg font-bold" style="color: #ddd;">$--</div>
                         </div>
                     </div>
                 </div>
@@ -406,49 +406,49 @@
                 <div class="grid grid-cols-4 gap-3" id="indicators-grid">
                     <!-- RSI -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">RSI (14)</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">RSI (14)</div>
                         <div id="ind-rsi" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-rsi-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- Stochastic -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">STOCH %K</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">STOCH %K</div>
                         <div id="ind-stoch" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-stoch-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- ATR -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ATR</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">ATR</div>
                         <div id="ind-atr" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-atr-label" style="font-size: 11px; color: #888;">vs avg: --</div>
                     </div>
                     <!-- ADX -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">ADX</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">ADX</div>
                         <div id="ind-adx" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-adx-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- BB Position -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">BB POSITION</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">BB POSITION</div>
                         <div id="ind-bb" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-bb-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- EMA Trend -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">EMA TREND</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">EMA TREND</div>
                         <div id="ind-ema" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-ema-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- MACD -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">MACD</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">MACD</div>
                         <div id="ind-macd" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-macd-label" style="font-size: 11px; color: #888;">--</div>
                     </div>
                     <!-- Candle -->
                     <div class="indicator-card">
-                        <div class="section-label mb-1" style="font-size: 9px; letter-spacing: 2px;">CANDLE</div>
+                        <div class="section-label mb-1" style="font-size: 11px; letter-spacing: 2px;">CANDLE</div>
                         <div id="ind-candle" class="font-headline text-xl font-bold" style="color: #999;">--</div>
                         <div id="ind-candle-label" style="font-size: 11px; color: #888;">Body: --%</div>
                     </div>
@@ -648,11 +648,11 @@
 
         // ---- Color helpers ----
         function signalColor(signal) {
-            if (!signal) return '#6b7280';
+            if (!signal) return '#aaa';
             const s = signal.toUpperCase();
-            if (s === 'BUY')  return '#00e479';
-            if (s === 'SELL') return '#bd0e2f';
-            return '#6b7280';
+            if (s === 'BUY')  return '#00ff41';
+            if (s === 'SELL') return '#ff0040';
+            return '#aaa';
         }
 
         function rsiColor(val) {
