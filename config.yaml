@@ -8,24 +8,25 @@ scoring:
   default_symbol: XAUUSD.m
   timeframe: M30
   bars_count: 200
-  confidence_threshold: 80
+  confidence_threshold: 98
   session_start_utc: 7
   session_end_utc: 21
   utc_offset: 3
 alerts:
   enabled: true
-  min_confidence: 90
+  min_confidence: 98
 server:
   host: 0.0.0.0
   port: 5000
 trade_manager:
   atr_period: 14
-  sl_multiplier: 1.5
-  tp_ratio: 2.5
+  sl_multiplier: 12
+  tp_ratio: 1.5
   high_vol_threshold: 1.5
   high_vol_duration: 900
   normal_vol_duration: 1800
   low_vol_duration: 2700
+  cooldown_bars: 8
 symbols:
 - XAUUSD.m
 - EURUSD.m
